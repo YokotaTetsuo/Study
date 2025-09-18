@@ -13,6 +13,8 @@ deactivate
 プロキシ関係
 環境変数設定
 export HTTP_PROXY=http://tg-proxy.tg-group.tokyo-gas.co.jp:8080 export HTTPS_PROXY=http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
+git config --global https.proxy http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
+git config --global http.proxy http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
 
 バックエンドで実行
  #サーバーをローカルで起動 (利用可能な環境: dev1, dev2, dev3, dev4, stg, prod)  ./devtool.sh exec dev2   # 環境情報の確認  ./devtool.sh env dev2   # テスト実行  ./devtool.sh test dev2
