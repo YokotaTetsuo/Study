@@ -19,19 +19,27 @@ export class DrizzleProjectRepository implements ProjectRepository {
   }
 
   async findById(id: ProjectId): Promise<Project | null> {
-    const projectRows = await this.#db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, id.value))
-      .limit(1);
-    const row = projectRows[0];
-    if (row === undefined) {
+    // 集約を一貫スナップショットから再構築するため単一トランザクションで読む。
+    const snapshot = await this.#db.transaction(async (tx) => {
+      const projectRows = await tx
+        .select()
+        .from(projects)
+        .where(eq(projects.id, id.value))
+        .limit(1);
+      const projectRow = projectRows[0];
+      if (projectRow === undefined) {
+        return null;
+      }
+      const memberRows = await tx
+        .select()
+        .from(projectMembers)
+        .where(eq(projectMembers.projectId, id.value));
+      return { projectRow, memberRows };
+    });
+    if (snapshot === null) {
       return null;
     }
-    const memberRows = await this.#db
-      .select()
-      .from(projectMembers)
-      .where(eq(projectMembers.projectId, id.value));
+    const { projectRow: row, memberRows } = snapshot;
 
     return Project.reconstruct({
       id: new ProjectId(row.id),
