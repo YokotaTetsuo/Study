@@ -1,6 +1,6 @@
 ---
 name: Hono Route Type Inference
-paths: "server/src/**/adapters/controllers/**/*.ts,server/src/infrastructure/composition/app.ts"
+paths: 'server/src/**/adapters/controllers/**/*.ts,server/src/infrastructure/composition/app.ts'
 ---
 
 # Hono ルート定義の型推論保護
@@ -30,13 +30,13 @@ export function createProjectApp(deps: ProjectRouteDeps, defaultHook: ...) {
 ```typescript
 // OK
 const badRequestResponse = {
-  description: "リクエストが不正" as const,
-  content: { "application/problem+json": { schema: problemDetailSchema } },
+  description: 'リクエストが不正' as const,
+  content: { 'application/problem+json': { schema: problemDetailSchema } },
 };
 
 // NG — content が readonly になり型が never に崩壊する
 const badRequestResponse = {
-  description: "リクエストが不正",
-  content: { "application/problem+json": { schema: problemDetailSchema } },
+  description: 'リクエストが不正',
+  content: { 'application/problem+json': { schema: problemDetailSchema } },
 } as const;
 ```

@@ -70,7 +70,7 @@ pnpm workspaces による5パッケージ構成。
 | `server`        | Hono API サーバー（Clean Architecture） |
 | `shared`        | Zod スキーマによる API コントラクト     |
 | `infra`         | インフラ定義                            |
-| `repo-settings` | Pulumi による GitHub リポジトリ設定     |
+| `repo-settings` | Pulumi による GitHub リポジトリ設定 ← **本リポでは対象外（作らない）** |
 
 **依存方向**: `client` → `shared` ← `server`。client から server への import は型のみ許可（Hono RPC の `AppType`）。
 

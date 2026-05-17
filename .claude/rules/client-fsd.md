@@ -1,6 +1,6 @@
 ---
 name: FSD Architecture Guide
-paths: "client/src/**"
+paths: 'client/src/**'
 ---
 
 # FSD Architecture Guide
@@ -65,18 +65,18 @@ features/create-project/
 
 ```typescript
 // features/create-project/index.ts
-export { CreateProjectForm } from "./ui/CreateProjectForm";
-export { useCreateProject } from "./model/useCreateProject";
+export { CreateProjectForm } from './ui/CreateProjectForm';
+export { useCreateProject } from './model/useCreateProject';
 ```
 
 外部からは必ずバレル経由で import する:
 
 ```typescript
 // OK
-import { CreateProjectForm } from "@/features/create-project";
+import { CreateProjectForm } from '@/features/create-project';
 
 // NG - 内部セグメントへの直接アクセス
-import { CreateProjectForm } from "@/features/create-project/ui/CreateProjectForm";
+import { CreateProjectForm } from '@/features/create-project/ui/CreateProjectForm';
 ```
 
 ## 依存方向ルール
@@ -113,8 +113,8 @@ React Portal は DOM 上は `<body>` 直下に切り出されるが、**Syntheti
 
 ```typescript
 // features/edit-something/index.ts
-export { EditSomethingButton } from "./ui/EditSomethingButton";
-export { EditSomethingDialog } from "./ui/EditSomethingDialog";
+export { EditSomethingButton } from './ui/EditSomethingButton';
+export { EditSomethingDialog } from './ui/EditSomethingDialog';
 ```
 
 #### 2. Button は trigger only、open state は持たない
@@ -172,9 +172,9 @@ export function VersionListSection(): ReactNode {
 
 ```typescript
 // features/edit-something/index.ts
-export { EditSomethingButton } from "./ui/EditSomethingButton";
-export { EditSomethingDialog } from "./ui/EditSomethingDialog";
-export { EditSomethingWidget } from "./ui/EditSomethingWidget"; // Convenience
+export { EditSomethingButton } from './ui/EditSomethingButton';
+export { EditSomethingDialog } from './ui/EditSomethingDialog';
+export { EditSomethingWidget } from './ui/EditSomethingWidget'; // Convenience
 ```
 
 ただし、**Convenience wrapper の利用は clickable な祖先がないことを保証できる場合のみ**。Accordion 等の中で使うと再び伝播問題が起きる。
