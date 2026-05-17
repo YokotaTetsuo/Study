@@ -183,18 +183,48 @@ describe('document controller', () => {
     expect(res.status).toBe(201);
   });
 
-  it('should map UnsupportedContentTypeError to 415', async () => {
+  it('should reject a non-PDF content type before reading the body (415)', async () => {
+    const uploadVersion = { execute: vi.fn().mockResolvedValue(RESULT) };
+    const app = createDocumentApp(deps(loggedIn, { uploadVersion }));
+    const form = new FormData();
+    form.set(
+      'file',
+      new File([new Uint8Array([1])], 'x.png', { type: 'image/png' }),
+    );
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}/versions`, {
+        method: 'POST',
+        headers: new Headers([['cookie', 'sid=a']]),
+        body: form,
+      }),
+    );
+
+    expect(res.status).toBe(415);
+    // 早期ガードで弾くため UseCase は呼ばれない。
+    expect(uploadVersion.execute).not.toHaveBeenCalled();
+  });
+
+  it('should map UnsupportedContentTypeError from the use case to 415', async () => {
+    // 早期ガードを通す（application/pdf）が、UseCase が拒否するケース。
     const app = createDocumentApp(
       deps(loggedIn, {
         uploadVersion: {
           execute: vi
             .fn()
-            .mockRejectedValue(new UnsupportedContentTypeError('image/png')),
+            .mockRejectedValue(
+              new UnsupportedContentTypeError('application/pdf'),
+            ),
         },
       }),
     );
     const form = new FormData();
-    form.set('file', new File([new Uint8Array([1])], 'x.png'));
+    form.set(
+      'file',
+      new File([new Uint8Array([1])], 'v.pdf', {
+        type: 'application/pdf',
+      }),
+    );
 
     const res = await app.request(
       new Request(`http://local/documents/${DOC_ID}/versions`, {
