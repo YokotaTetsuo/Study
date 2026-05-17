@@ -3,3 +3,9 @@
  */
 export { healthResponseSchema } from './health';
 export type { HealthResponse } from './health';
+export {
+  registerRequestSchema,
+  loginRequestSchema,
+  userResponseSchema,
+} from './auth';
+export type { RegisterRequest, LoginRequest, UserResponse } from './auth';
