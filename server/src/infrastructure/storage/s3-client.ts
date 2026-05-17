@@ -58,6 +58,15 @@ export async function ensureBucket(
   // AWS S3 本体は us-east-1 以外で LocationConstraint が必須。
   const constraint =
     region === DEFAULT_REGION ? undefined : toLocationConstraint(region);
+  if (region !== DEFAULT_REGION && constraint === undefined) {
+    // AWS S3 本体では LocationConstraint 無しの作成が失敗しやすい。
+    // 設定ミスの切り分けを容易にするため明示的に警告する。
+    // eslint-disable-next-line no-console -- 起動時の構成警告
+    console.warn(
+      `S3_REGION='${region}' は既知の LocationConstraint ではありません。` +
+        `AWS S3 本体ではバケット作成に失敗する可能性があります。`,
+    );
+  }
   try {
     await client.send(
       new CreateBucketCommand({
