@@ -101,19 +101,21 @@ export function stepThought(t: Thought, dt: number, env: StepEnv): Thought {
   let y = t.y + vy * dt;
 
   // 画面端では速度を反転させ、内側へ戻す。
-  const margin = 40;
-  if (x < margin) {
-    x = margin;
+  // 極小ビューポートでも境界が反転しないよう、margin を環境サイズで上限制限する。
+  const marginX = Math.min(40, env.width / 2);
+  const marginY = Math.min(40, env.height / 2);
+  if (x < marginX) {
+    x = marginX;
     vx = Math.abs(vx);
-  } else if (x > env.width - margin) {
-    x = env.width - margin;
+  } else if (x > env.width - marginX) {
+    x = env.width - marginX;
     vx = -Math.abs(vx);
   }
-  if (y < margin) {
-    y = margin;
+  if (y < marginY) {
+    y = marginY;
     vy = Math.abs(vy);
-  } else if (y > env.height - margin) {
-    y = env.height - margin;
+  } else if (y > env.height - marginY) {
+    y = env.height - marginY;
     vy = -Math.abs(vy);
   }
 
