@@ -45,7 +45,7 @@ const SWAY_FREQ = 0.6;
 const SWAY_ACCEL = 6;
 const DRAG = 0.92;
 
-export function clamp(value: number, min: number, max: number): number {
+function clamp(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
   return value;
