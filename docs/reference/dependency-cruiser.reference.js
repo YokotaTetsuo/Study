@@ -115,7 +115,9 @@ export default {
 
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "\\.(test|spec)\\.ts$" },
+    // 本リポ向け改善: 上流は `\\.(test|spec)\\.ts$` で .tsx を除外できない。
+    // client(tsx) のテストも依存検査対象外にするため tsx を含める。
+    exclude: { path: "\\.(test|spec)\\.tsx?$" },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ["exports"],

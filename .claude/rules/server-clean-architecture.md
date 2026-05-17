@@ -1,6 +1,6 @@
 ---
 name: Server Clean Architecture + DDD
-paths: "server/src/**"
+paths: 'server/src/**'
 ---
 
 # Server Clean Architecture + DDD

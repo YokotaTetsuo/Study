@@ -51,8 +51,8 @@ Vitest の `projects` で Small / Medium を独立 project として登録する
 export default defineConfig({
   test: {
     projects: [
-      { test: { name: "small", include: ["src/**/*.small.test.{ts,tsx}"] } },
-      { test: { name: "medium", include: ["src/**/*.medium.test.{ts,tsx}"] } },
+      { test: { name: 'small', include: ['src/**/*.small.test.{ts,tsx}'] } },
+      { test: { name: 'medium', include: ['src/**/*.medium.test.{ts,tsx}'] } },
     ],
   },
 });
@@ -201,9 +201,9 @@ Large は Vitest 外のツール (Playwright) で扱う。
 
 ```typescript
 it.each([
-  { input: "", reason: "空文字" },
-  { input: "x".repeat(MAX_LENGTH + 1), reason: "最大超" },
-])("should throw for invalid description ($reason)", ({ input }) => {
+  { input: '', reason: '空文字' },
+  { input: 'x'.repeat(MAX_LENGTH + 1), reason: '最大超' },
+])('should throw for invalid description ($reason)', ({ input }) => {
   expect(() => new VersionDescription(input)).toThrow();
 });
 ```
@@ -215,7 +215,7 @@ it.each([
 ```typescript
 const version = aVersion()
   .forProject(SOME_PROJECT_ID)
-  .withDescription("初回提出版")
+  .withDescription('初回提出版')
   .build();
 ```
 
@@ -287,7 +287,7 @@ expect(mockVersionRepository.save).toHaveBeenCalledWith(
   expect.objectContaining({
     createdAt: fixedTime, // Clock スタブで自明
     id: expect.objectContaining({ value: NEW_ID }), // IdGenerator スタブで自明
-    description: expect.objectContaining({ value: "v4" }), // 引数転記で自明
+    description: expect.objectContaining({ value: 'v4' }), // 引数転記で自明
   }),
 );
 ```
@@ -303,7 +303,7 @@ expect(result.x).toBe(1);
 // ✅ ドメイン語彙で失敗メッセージが具体的
 expect(version.number.value).toBe(1);
 expect(version.comments).toHaveLength(2);
-expect(version.comments[0]?.type.value).toBe("REJECTION");
+expect(version.comments[0]?.type.value).toBe('REJECTION');
 ```
 
 テストが失敗したときログに出る式が、そのまま **何が壊れたか** を語れる状態を目指す。
