@@ -3,6 +3,7 @@ import type { Dayjs } from 'dayjs';
 import type { DocumentId } from './document-id';
 import type { DocumentName } from './document-name';
 import type { DocumentProjectId } from './document-project-id';
+import { InvalidDocumentStateError } from './invalid-document-state-error';
 import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
 import { VersionStatus } from './version-status';
@@ -142,6 +143,12 @@ export class Document {
     const sorted = [...params.versionsData].sort(
       (a, b) => a.versionNumber - b.versionNumber,
     );
+    // 不変条件: 版番号は 1 からの連番で欠番・重複なし。
+    if (sorted.some((d, i) => d.versionNumber !== i + 1)) {
+      throw new InvalidDocumentStateError(
+        '版番号が 1 からの連番になっていません',
+      );
+    }
     const versions = sorted.map((d) =>
       DocumentVersion.reconstruct({
         versionNumber: d.versionNumber,

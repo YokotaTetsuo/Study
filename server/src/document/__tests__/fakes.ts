@@ -5,15 +5,15 @@ import type { Clock } from '../../shared-kernel/clock';
 import type { FileStorage } from '../../shared-kernel/file-storage';
 import type { IdGenerator } from '../../shared-kernel/id-generator';
 import type { ProjectAccess } from '../application/project-access';
-import type { Document } from '../domain/document';
-import type { DocumentId } from '../domain/document-id';
-import type { DocumentProjectId } from '../domain/document-project-id';
+import { Document } from '../domain/document';
+import { DocumentId } from '../domain/document-id';
+import { DocumentName } from '../domain/document-name';
+import { DocumentProjectId } from '../domain/document-project-id';
 import type { DocumentRepository } from '../domain/document-repository';
 
 export const FIXED_NOW: Dayjs = dayjs('2026-05-18T00:00:00.000Z');
 export const PROJECT_ID = '01HQ8ZK9PRSTVWXYZ234567890';
 export const DOCUMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789A';
-export const VERSION_ID = '01HQ8ZK9PRSTVWXYZ23456789B';
 export const MEMBER_ID = '01HQ8ZK9PRSTVWXYZ23456789C';
 export const OUTSIDER_ID = '01HQ8ZK9PRSTVWXYZ23456789D';
 
@@ -34,22 +34,44 @@ export function sequentialIdGenerator(prefix: string): IdGenerator {
   };
 }
 
+/**
+ * 永続境界を模すため、保存値とは独立した複製を作る。
+ * これにより「save() を呼び忘れた集約変更」がテストに漏れない。
+ */
+function cloneDocument(d: Document): Document {
+  return Document.reconstruct({
+    id: new DocumentId(d.id.value),
+    projectId: new DocumentProjectId(d.projectId.value),
+    name: new DocumentName(d.name.value),
+    createdAt: d.createdAt,
+    versionsData: d.versions.map((v) => ({
+      versionNumber: v.versionNumber,
+      status: v.status.value,
+      storageKey: v.storageKey.value,
+      uploadedBy: v.uploadedBy.value,
+      createdAt: v.createdAt,
+    })),
+  });
+}
+
 export class InMemoryDocumentRepository implements DocumentRepository {
   readonly #byId = new Map<string, Document>();
 
   findById(id: DocumentId): Promise<Document | null> {
-    return Promise.resolve(this.#byId.get(id.value) ?? null);
+    const found = this.#byId.get(id.value);
+    return Promise.resolve(found === undefined ? null : cloneDocument(found));
   }
 
   listByProject(projectId: DocumentProjectId): Promise<readonly Document[]> {
-    const list = [...this.#byId.values()].filter((d) =>
-      d.projectId.equals(projectId),
-    );
+    const list = [...this.#byId.values()]
+      .filter((d) => d.projectId.equals(projectId))
+      .sort((a, b) => a.createdAt.valueOf() - b.createdAt.valueOf())
+      .map(cloneDocument);
     return Promise.resolve(list);
   }
 
   save(document: Document): Promise<void> {
-    this.#byId.set(document.id.value, document);
+    this.#byId.set(document.id.value, cloneDocument(document));
     return Promise.resolve();
   }
 }
@@ -68,15 +90,22 @@ export class InMemoryFileStorage implements FileStorage {
   }
 }
 
-/** 指定ユーザー集合のみメンバーとみなす ProjectAccess。 */
+/**
+ * 指定プロジェクトの指定ユーザーのみメンバーとみなす ProjectAccess。
+ * projectId も判定対象にすることで、誤った projectId を渡す回帰を検出する。
+ */
 export class FakeProjectAccess implements ProjectAccess {
+  readonly #projectId: string;
   readonly #members: ReadonlySet<string>;
 
-  constructor(memberUserIds: readonly string[]) {
+  constructor(projectId: string, memberUserIds: readonly string[]) {
+    this.#projectId = projectId;
     this.#members = new Set(memberUserIds);
   }
 
-  isMember(_projectId: string, userId: string): Promise<boolean> {
-    return Promise.resolve(this.#members.has(userId));
+  isMember(projectId: string, userId: string): Promise<boolean> {
+    return Promise.resolve(
+      projectId === this.#projectId && this.#members.has(userId),
+    );
   }
 }

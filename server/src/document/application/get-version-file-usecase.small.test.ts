@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { StoredFileMissingError } from '../../shared-kernel/stored-file-missing-error';
 import {
   DOCUMENT_ID,
   FIXED_NOW,
@@ -51,7 +52,7 @@ describe('GetVersionFileUseCase', () => {
     const { documents, fileStorage } = await setup();
     const useCase = new GetVersionFileUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage,
     });
 
@@ -68,7 +69,7 @@ describe('GetVersionFileUseCase', () => {
     const { documents, fileStorage } = await setup();
     const useCase = new GetVersionFileUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage,
     });
 
@@ -85,7 +86,7 @@ describe('GetVersionFileUseCase', () => {
     const { documents, fileStorage } = await setup();
     const useCase = new GetVersionFileUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage,
     });
 
@@ -96,5 +97,35 @@ describe('GetVersionFileUseCase', () => {
         actingUserId: MEMBER_ID,
       }),
     ).rejects.toThrow(VersionNotFoundError);
+  });
+
+  it('should throw StoredFileMissingError when the blob is gone', async () => {
+    // 版メタデータは在るが blob を put しない（ストレージ不整合を再現）。
+    const documents = new InMemoryDocumentRepository();
+    const doc = Document.create({
+      id: new DocumentId(DOCUMENT_ID),
+      projectId: new DocumentProjectId(PROJECT_ID),
+      name: new DocumentName('設計書'),
+      createdAt: FIXED_NOW,
+    });
+    doc.addVersion({
+      storageKey: new StorageKey(KEY),
+      uploadedBy: new UploaderId(MEMBER_ID),
+      createdAt: FIXED_NOW,
+    });
+    await documents.save(doc);
+    const useCase = new GetVersionFileUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      fileStorage: new InMemoryFileStorage(),
+    });
+
+    await expect(
+      useCase.execute({
+        documentId: DOCUMENT_ID,
+        versionNumber: 1,
+        actingUserId: MEMBER_ID,
+      }),
+    ).rejects.toThrow(StoredFileMissingError);
   });
 });

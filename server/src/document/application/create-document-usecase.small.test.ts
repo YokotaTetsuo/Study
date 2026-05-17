@@ -19,7 +19,7 @@ describe('CreateDocumentUseCase', () => {
     const documents = new InMemoryDocumentRepository();
     const useCase = new CreateDocumentUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       idGenerator: idGeneratorReturning(DOCUMENT_ID),
       clock: fixedClock,
     });
@@ -39,7 +39,7 @@ describe('CreateDocumentUseCase', () => {
   it('should reject a non-member', async () => {
     const useCase = new CreateDocumentUseCase({
       documents: new InMemoryDocumentRepository(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       idGenerator: idGeneratorReturning(DOCUMENT_ID),
       clock: fixedClock,
     });

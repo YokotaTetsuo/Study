@@ -5,6 +5,7 @@ import { Document } from './document';
 import { DocumentId } from './document-id';
 import { DocumentName } from './document-name';
 import { DocumentProjectId } from './document-project-id';
+import { InvalidDocumentStateError } from './invalid-document-state-error';
 import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
 
@@ -90,4 +91,29 @@ describe('Document', () => {
     });
     expect(v3.versionNumber).toBe(3);
   });
+
+  it.each([
+    { numbers: [1, 1], reason: 'duplicate' },
+    { numbers: [2], reason: 'not starting at 1' },
+    { numbers: [1, 3], reason: 'gap' },
+  ])(
+    'should reject reconstruction of a broken version sequence ($reason)',
+    ({ numbers }) => {
+      expect(() =>
+        Document.reconstruct({
+          id: new DocumentId(DOC_ID),
+          projectId: new DocumentProjectId(PROJ_ID),
+          name: new DocumentName('設計書'),
+          createdAt: NOW,
+          versionsData: numbers.map((n) => ({
+            versionNumber: n,
+            status: 'draft',
+            storageKey: `documents/d/v${String(n)}.pdf`,
+            uploadedBy: USER_ID,
+            createdAt: NOW,
+          })),
+        }),
+      ).toThrow(InvalidDocumentStateError);
+    },
+  );
 });

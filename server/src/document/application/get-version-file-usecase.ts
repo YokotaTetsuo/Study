@@ -1,4 +1,5 @@
 import type { FileStorage } from '../../shared-kernel/file-storage';
+import { StoredFileMissingError } from '../../shared-kernel/stored-file-missing-error';
 import { DocumentId } from '../domain/document-id';
 import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import type { DocumentRepository } from '../domain/document-repository';
@@ -56,7 +57,8 @@ export class GetVersionFileUseCase {
     }
     const data = await this.#fileStorage.get(version.storageKey.value);
     if (data === null) {
-      throw new VersionNotFoundError();
+      // 版メタデータは在るのに blob が無い = ストレージ不整合（404 ではない）。
+      throw new StoredFileMissingError(version.storageKey.value);
     }
     return { data };
   }

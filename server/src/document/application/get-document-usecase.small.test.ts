@@ -18,9 +18,9 @@ import { DocumentProjectId } from '../domain/document-project-id';
 import { GetDocumentUseCase } from './get-document-usecase';
 import { NotAuthorizedError } from './not-authorized-error';
 
-function seededRepo(): InMemoryDocumentRepository {
+async function seededRepo(): Promise<InMemoryDocumentRepository> {
   const documents = new InMemoryDocumentRepository();
-  void documents.save(
+  await documents.save(
     Document.create({
       id: new DocumentId(DOCUMENT_ID),
       projectId: new DocumentProjectId(PROJECT_ID),
@@ -34,8 +34,8 @@ function seededRepo(): InMemoryDocumentRepository {
 describe('GetDocumentUseCase', () => {
   it('should return the document for a member', async () => {
     const useCase = new GetDocumentUseCase({
-      documents: seededRepo(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      documents: await seededRepo(),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
     });
 
     const result = await useCase.execute({
@@ -49,8 +49,8 @@ describe('GetDocumentUseCase', () => {
 
   it('should reject a non-member', async () => {
     const useCase = new GetDocumentUseCase({
-      documents: seededRepo(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      documents: await seededRepo(),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
     });
 
     await expect(
@@ -64,7 +64,7 @@ describe('GetDocumentUseCase', () => {
   it('should throw when the document does not exist', async () => {
     const useCase = new GetDocumentUseCase({
       documents: new InMemoryDocumentRepository(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
     });
 
     await expect(

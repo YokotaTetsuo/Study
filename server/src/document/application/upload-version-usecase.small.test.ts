@@ -21,9 +21,9 @@ import { DocumentProjectId } from '../domain/document-project-id';
 import { NotAuthorizedError } from './not-authorized-error';
 import { UploadVersionUseCase } from './upload-version-usecase';
 
-function seededRepo(): InMemoryDocumentRepository {
+async function seededRepo(): Promise<InMemoryDocumentRepository> {
   const documents = new InMemoryDocumentRepository();
-  void documents.save(
+  await documents.save(
     Document.create({
       id: new DocumentId(DOCUMENT_ID),
       projectId: new DocumentProjectId(PROJECT_ID),
@@ -36,11 +36,11 @@ function seededRepo(): InMemoryDocumentRepository {
 
 describe('UploadVersionUseCase', () => {
   it('should append a draft version and store the file', async () => {
-    const documents = seededRepo();
+    const documents = await seededRepo();
     const fileStorage = new InMemoryFileStorage();
     const useCase = new UploadVersionUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage,
       idGenerator: sequentialIdGenerator('key-'),
       clock: fixedClock,
@@ -64,8 +64,8 @@ describe('UploadVersionUseCase', () => {
 
   it('should reject a non-member', async () => {
     const useCase = new UploadVersionUseCase({
-      documents: seededRepo(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      documents: await seededRepo(),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage: new InMemoryFileStorage(),
       idGenerator: sequentialIdGenerator('key-'),
       clock: fixedClock,
@@ -84,7 +84,7 @@ describe('UploadVersionUseCase', () => {
   it('should throw when the document does not exist', async () => {
     const useCase = new UploadVersionUseCase({
       documents: new InMemoryDocumentRepository(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
       fileStorage: new InMemoryFileStorage(),
       idGenerator: sequentialIdGenerator('key-'),
       clock: fixedClock,
