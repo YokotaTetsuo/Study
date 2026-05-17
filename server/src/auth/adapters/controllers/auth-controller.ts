@@ -1,0 +1,165 @@
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
+import {
+  loginRequestSchema,
+  problemDetailSchema,
+  registerRequestSchema,
+  userResponseSchema,
+} from '@pdf-review/shared';
+import type { UserResponse } from '@pdf-review/shared';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+import type { GetMeUseCase } from '../../application/get-me-usecase';
+import type { LoginUseCase } from '../../application/login-usecase';
+import type { LogoutUseCase } from '../../application/logout-usecase';
+import type { RegisterUseCase } from '../../application/register-usecase';
+import type { UserResult } from '../../application/user-result';
+
+import { toProblem } from './problem';
+
+const SESSION_COOKIE = 'sid';
+
+interface AuthDeps {
+  readonly register: Pick<RegisterUseCase, 'execute'>;
+  readonly login: Pick<LoginUseCase, 'execute'>;
+  readonly logout: Pick<LogoutUseCase, 'execute'>;
+  readonly getMe: Pick<GetMeUseCase, 'execute'>;
+}
+
+function toUserResponse(result: UserResult): UserResponse {
+  return {
+    id: result.id,
+    email: result.email,
+    displayName: result.displayName,
+    createdAt: result.createdAt.toISOString(),
+  };
+}
+
+/* eslint-disable @typescript-eslint/naming-convention --
+   HTTP ステータスコード・MIME タイプ・Cookie 設定は外部仕様で決まる
+   識別子のため camelCase 規約の対象外。 */
+const problemContent = {
+  'application/problem+json': { schema: problemDetailSchema },
+};
+const errorResponses = {
+  400: { description: 'リクエストが不正' as const, content: problemContent },
+  401: { description: '認証が必要' as const, content: problemContent },
+  404: { description: '対象が存在しない' as const, content: problemContent },
+  409: { description: '競合' as const, content: problemContent },
+  500: { description: 'サーバエラー' as const, content: problemContent },
+};
+const userContent = {
+  'application/json': { schema: userResponseSchema },
+};
+const COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: 'Lax',
+  path: '/',
+  secure: false,
+} as const;
+
+const registerRoute = createRoute({
+  method: 'post',
+  path: '/auth/register',
+  request: {
+    body: {
+      content: { 'application/json': { schema: registerRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    201: { description: '作成成功' as const, content: userContent },
+  },
+});
+
+const loginRoute = createRoute({
+  method: 'post',
+  path: '/auth/login',
+  request: {
+    body: { content: { 'application/json': { schema: loginRequestSchema } } },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: 'ログイン成功' as const, content: userContent },
+  },
+});
+
+const logoutRoute = createRoute({
+  method: 'post',
+  path: '/auth/logout',
+  responses: {
+    ...errorResponses,
+    204: { description: 'ログアウト成功' as const },
+  },
+});
+
+const meRoute = createRoute({
+  method: 'get',
+  path: '/auth/me',
+  responses: {
+    ...errorResponses,
+    200: { description: '現在のユーザー' as const, content: userContent },
+  },
+});
+/* eslint-enable @typescript-eslint/naming-convention */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type --
+   Hono RPC のエンドツーエンド型推論を保持するため戻り値型を明示しない
+   （.claude/rules/server-hono-routes.md）。 */
+export function createAuthApp(deps: AuthDeps) {
+  return new OpenAPIHono({
+    defaultHook: (result, c) => {
+      if (!result.success) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            detail: 'リクエストの検証に失敗しました',
+          },
+          400,
+        );
+      }
+      return undefined;
+    },
+  })
+    .openapi(registerRoute, async (c) => {
+      try {
+        const result = await deps.register.execute(c.req.valid('json'));
+        return c.json(toUserResponse(result), 201);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status);
+      }
+    })
+    .openapi(loginRoute, async (c) => {
+      try {
+        const { user, sessionId } = await deps.login.execute(
+          c.req.valid('json'),
+        );
+        setCookie(c, SESSION_COOKIE, sessionId, COOKIE_OPTS);
+        return c.json(toUserResponse(user), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status);
+      }
+    })
+    .openapi(logoutRoute, async (c) => {
+      const sessionId = getCookie(c, SESSION_COOKIE);
+      if (sessionId !== undefined) {
+        await deps.logout.execute({ sessionId });
+        deleteCookie(c, SESSION_COOKIE, { path: '/' });
+      }
+      return c.body(null, 204);
+    })
+    .openapi(meRoute, async (c) => {
+      try {
+        const sessionId = getCookie(c, SESSION_COOKIE) ?? '';
+        const result = await deps.getMe.execute({ sessionId });
+        return c.json(toUserResponse(result), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status);
+      }
+    });
+}
+/* eslint-enable @typescript-eslint/explicit-function-return-type */

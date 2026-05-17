@@ -9,3 +9,5 @@ export {
   userResponseSchema,
 } from './auth';
 export type { RegisterRequest, LoginRequest, UserResponse } from './auth';
+export { problemDetailSchema } from './problem';
+export type { ProblemDetail } from './problem';
