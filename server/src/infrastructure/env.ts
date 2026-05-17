@@ -5,13 +5,15 @@ import { z } from 'zod';
  */
 /* eslint-disable @typescript-eslint/naming-convention --
    環境変数名は UPPER_SNAKE_CASE が OS/12-factor の慣習のため対象外。 */
+const tcpPort = z.coerce.number().int().min(1).max(65535);
+
 const envSchema = z.object({
-  DB_HOST: z.string().default('localhost'),
-  DB_PORT: z.coerce.number().default(5432),
-  DB_USER: z.string().default('pdfreview'),
-  DB_PASSWORD: z.string().default('pdfreview'),
-  DB_NAME: z.string().default('pdfreview'),
-  PORT: z.coerce.number().default(3000),
+  DB_HOST: z.string().min(1).default('localhost'),
+  DB_PORT: tcpPort.default(5432),
+  DB_USER: z.string().min(1).default('pdfreview'),
+  DB_PASSWORD: z.string().min(1).default('pdfreview'),
+  DB_NAME: z.string().min(1).default('pdfreview'),
+  PORT: tcpPort.default(3000),
 });
 /* eslint-enable @typescript-eslint/naming-convention */
 

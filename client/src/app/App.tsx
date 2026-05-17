@@ -34,8 +34,10 @@ export function App(): ReactElement {
   return (
     <main style={{ fontFamily: 'system-ui', padding: 24 }}>
       <h1>PDF Review</h1>
-      <p>API: {label}</p>
-      {detail !== '' && <p style={{ color: '#888' }}>{detail}</p>}
+      <div role="status" aria-live="polite">
+        <p>API: {label}</p>
+        {detail !== '' && <p style={{ color: '#595959' }}>{detail}</p>}
+      </div>
     </main>
   );
 }
