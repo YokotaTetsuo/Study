@@ -4,10 +4,11 @@ import postgres from 'postgres';
 import type { Sql } from 'postgres';
 
 import * as authSchema from '../../auth/adapters/gateways/schema';
+import * as documentSchema from '../../document/adapters/gateways/schema';
 import * as projectSchema from '../../project/adapters/gateways/schema';
 import type { Env } from '../env';
 
-const schema = { ...authSchema, ...projectSchema };
+const schema = { ...authSchema, ...projectSchema, ...documentSchema };
 
 export type Database = PostgresJsDatabase<typeof schema>;
 

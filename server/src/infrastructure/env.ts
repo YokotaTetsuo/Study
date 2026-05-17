@@ -24,6 +24,16 @@ const envSchema = z.object({
     .url()
     .transform((v) => new URL(v).origin)
     .default('http://localhost:5173'),
+  // S3 互換ストレージ（docker compose の rustfs サービス）。
+  S3_ENDPOINT: z.string().url().default('http://localhost:9000'),
+  S3_REGION: z.string().min(1).default('us-east-1'),
+  S3_BUCKET: z.string().min(1).default('pdfreview'),
+  S3_ACCESS_KEY_ID: z.string().min(1).default('pdfreview'),
+  S3_SECRET_ACCESS_KEY: z.string().min(1).default('pdfreview'),
+  S3_FORCE_PATH_STYLE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 });
 /* eslint-enable @typescript-eslint/naming-convention */
 
