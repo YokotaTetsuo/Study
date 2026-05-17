@@ -7,6 +7,8 @@ import {
   PROJECT_ID_1,
 } from '../__tests__/fakes';
 
+import { ApprovalPolicy } from './approval-policy';
+import { InvalidProjectStateError } from './invalid-project-state-error';
 import { LastOwnerError } from './last-owner-error';
 import { MemberAlreadyExistsError } from './member-already-exists-error';
 import { MemberNotFoundError } from './member-not-found-error';
@@ -80,5 +82,32 @@ describe('Project', () => {
     expect(() => {
       p.setMemberRole(new MemberUserId(MEMBER_ID), new ProjectRole('reviewer'));
     }).toThrow(MemberNotFoundError);
+  });
+
+  it('should reject reconstruction with no owner', () => {
+    expect(() =>
+      Project.reconstruct({
+        id: new ProjectId(PROJECT_ID_1),
+        name: new ProjectName('Docs'),
+        createdAt: FIXED_NOW,
+        membersData: [{ userId: OWNER_ID, role: 'reviewer' }],
+        approvalPolicy: ApprovalPolicy.default(),
+      }),
+    ).toThrow(InvalidProjectStateError);
+  });
+
+  it('should reject reconstruction with duplicate members', () => {
+    expect(() =>
+      Project.reconstruct({
+        id: new ProjectId(PROJECT_ID_1),
+        name: new ProjectName('Docs'),
+        createdAt: FIXED_NOW,
+        membersData: [
+          { userId: OWNER_ID, role: 'owner' },
+          { userId: OWNER_ID, role: 'reviewer' },
+        ],
+        approvalPolicy: ApprovalPolicy.default(),
+      }),
+    ).toThrow(InvalidProjectStateError);
   });
 });

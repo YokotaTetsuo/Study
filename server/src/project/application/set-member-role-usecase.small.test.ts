@@ -11,6 +11,7 @@ import { MemberUserId } from '../domain/member-user-id';
 import { Project } from '../domain/project';
 import { ProjectId } from '../domain/project-id';
 import { ProjectName } from '../domain/project-name';
+import { ProjectNotFoundError } from '../domain/project-not-found-error';
 import { ProjectRole } from '../domain/project-role';
 
 import { NotAuthorizedError } from './not-authorized-error';
@@ -64,5 +65,20 @@ describe('SetMemberRoleUseCase', () => {
         role: 'approver',
       }),
     ).rejects.toThrow(NotAuthorizedError);
+  });
+
+  it('should reject when the project does not exist', async () => {
+    const useCase = new SetMemberRoleUseCase({
+      projects: new InMemoryProjectRepository(),
+    });
+
+    await expect(
+      useCase.execute({
+        projectId: PROJECT_ID_1,
+        actingUserId: OWNER_ID,
+        userId: MEMBER_ID,
+        role: 'approver',
+      }),
+    ).rejects.toThrow(ProjectNotFoundError);
   });
 });

@@ -1,6 +1,7 @@
 import type { Dayjs } from 'dayjs';
 
 import { ApprovalPolicy } from './approval-policy';
+import { InvalidProjectStateError } from './invalid-project-state-error';
 import { LastOwnerError } from './last-owner-error';
 import { MemberAlreadyExistsError } from './member-already-exists-error';
 import { MemberNotFoundError } from './member-not-found-error';
@@ -108,6 +109,13 @@ export class Project {
         new ProjectRole(d.role),
       ),
     );
+    const ids = new Set(members.map((m) => m.userId.value));
+    if (ids.size !== members.length) {
+      throw new InvalidProjectStateError('メンバーが重複しています');
+    }
+    if (!members.some((m) => m.role.isOwner())) {
+      throw new InvalidProjectStateError('Owner が存在しません');
+    }
     return new Project({
       id: params.id,
       name: params.name,

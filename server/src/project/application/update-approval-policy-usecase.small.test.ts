@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FIXED_NOW,
   InMemoryProjectRepository,
+  MEMBER_ID,
   OWNER_ID,
   PROJECT_ID_1,
 } from '../__tests__/fakes';
@@ -12,6 +13,7 @@ import { ProjectId } from '../domain/project-id';
 import { ProjectName } from '../domain/project-name';
 import { ProjectNotFoundError } from '../domain/project-not-found-error';
 
+import { NotAuthorizedError } from './not-authorized-error';
 import { UpdateApprovalPolicyUseCase } from './update-approval-policy-usecase';
 
 async function seeded(): Promise<InMemoryProjectRepository> {
@@ -57,5 +59,20 @@ describe('UpdateApprovalPolicyUseCase', () => {
         approverRoles: ['owner'],
       }),
     ).rejects.toThrow(ProjectNotFoundError);
+  });
+
+  it('should reject when the acting user is not an owner', async () => {
+    const useCase = new UpdateApprovalPolicyUseCase({
+      projects: await seeded(),
+    });
+
+    await expect(
+      useCase.execute({
+        projectId: PROJECT_ID_1,
+        actingUserId: MEMBER_ID,
+        requiredApprovals: 2,
+        approverRoles: ['owner'],
+      }),
+    ).rejects.toThrow(NotAuthorizedError);
   });
 });
