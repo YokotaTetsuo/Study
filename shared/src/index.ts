@@ -11,3 +11,23 @@ export {
 export type { RegisterRequest, LoginRequest, UserResponse } from './auth';
 export { problemDetailSchema } from './problem';
 export type { ProblemDetail } from './problem';
+export {
+  projectRoleSchema,
+  createProjectRequestSchema,
+  addMemberRequestSchema,
+  setMemberRoleRequestSchema,
+  approvalPolicySchema,
+  updateApprovalPolicyRequestSchema,
+  projectMemberSchema,
+  projectResponseSchema,
+} from './project';
+export type {
+  ProjectRole,
+  CreateProjectRequest,
+  AddMemberRequest,
+  SetMemberRoleRequest,
+  ApprovalPolicy,
+  UpdateApprovalPolicyRequest,
+  ProjectMember,
+  ProjectResponse,
+} from './project';
