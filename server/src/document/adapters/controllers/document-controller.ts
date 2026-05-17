@@ -289,6 +289,19 @@ export function createDocumentApp(deps: DocumentDeps) {
             PROBLEM_HEADERS,
           );
         }
+        // バイト列を読む前に Content-Type を弾き、415 ケースの I/O を避ける。
+        if (file.type.trim().toLowerCase() !== PDF_CONTENT_TYPE) {
+          return c.json(
+            {
+              type: 'about:blank',
+              title: 'Unsupported Media Type',
+              status: 415,
+              detail: 'PDF のみアップロードできます',
+            },
+            415,
+            PROBLEM_HEADERS,
+          );
+        }
         const data = new Uint8Array(await file.arrayBuffer());
         const result = await deps.uploadVersion.execute({
           documentId: c.req.valid('param').documentId,
@@ -327,10 +340,15 @@ export function createDocumentApp(deps: DocumentDeps) {
           versionNumber,
           actingUserId,
         });
-        // ArrayBuffer 裏付けの Uint8Array に詰め替えて c.body の型と整合させる。
-        const bytes = new Uint8Array(result.data.byteLength);
-        bytes.set(result.data);
-        return c.body(bytes, 200, PDF_HEADERS);
+        // コピーせずに返す（大きい PDF でメモリを倍に使わない）。
+        // 単一チャンクの ReadableStream にして c.body の型と整合させる。
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller): void {
+            controller.enqueue(result.data);
+            controller.close();
+          },
+        });
+        return c.body(stream, 200, PDF_HEADERS);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);
