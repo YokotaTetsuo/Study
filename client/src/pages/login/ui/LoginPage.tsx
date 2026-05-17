@@ -6,8 +6,13 @@ import { LoginForm, useLogin } from '../../../features/auth';
 import { isApiError } from '../../../shared/api/api-error';
 
 function loginErrorMessage(error: unknown): string {
-  if (isApiError(error) && error.status === 401) {
-    return 'メールアドレスまたはパスワードが正しくありません';
+  if (isApiError(error)) {
+    if (error.status === 401) {
+      return 'メールアドレスまたはパスワードが正しくありません';
+    }
+    if (error.status === 400) {
+      return '入力内容を確認してください（パスワードは8文字以上）';
+    }
   }
   return '通信エラーが発生しました。時間をおいて再度お試しください';
 }
