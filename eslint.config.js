@@ -4,7 +4,9 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+    // docs/ は panoptiplan からの参照用設定サンプル等を含む。
+    // 現行プロジェクトの tsconfig 配下ではないため lint/型検査の対象外とする。
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'docs/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
