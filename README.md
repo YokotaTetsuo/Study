@@ -1,40 +1,60 @@
-# 思考の席
+# PDF Review
 
-打った言葉が生き物になって画面を漂い、放置すると枯れ、クリックで水やりすると
-息を吹き返す——「考えたことの生態系」を体験する単一の TypeScript ブラウザアプリ。
+PDF をバージョン管理し、版にコメントを付け、承認フローを通すマルチユーザー
+Web アプリ（「PDF 版 GitHub」）。実装規約は同組織の姉妹リポ
+`tokyogas-tech/panoptiplan-web` に準拠する。
 
-**永続化しません。** リロードで思考が消えるのは仕様です（コンセプトの核）。
+- 線形バージョン + 承認ゲート（提出 → レビュー → 承認/差戻し → 正式版確定）
+- 版単位のコメントスレッド
+- 設定可能なロール（Owner/Submitter/Reviewer/Approver）と承認ポリシー
 
-## セットアップ / 開発
+設計・タスクは [docs/PLAN.md](docs/PLAN.md) / [docs/TASKS.md](docs/TASKS.md) を参照。
 
-パッケージマネージャは **pnpm**、Node.js は **v24**。
+## セットアップ
+
+パッケージマネージャは **pnpm**（v10.33+）、Node.js は **v24**。
 
 ```bash
-pnpm install
-pnpm dev            # Vite 開発サーバ
-pnpm build          # 型ビルド + Vite 本番ビルド
-pnpm preview        # ビルド成果物をローカル配信
-pnpm typecheck      # tsc --noEmit
+pnpm install        # 依存インストール（husky も準備される）
+```
+
+> DB / S3 / マイグレーション（docker compose、`.env.example` 等）は
+> Phase 0 PR 0.4 以降で導入する（[docs/TASKS.md](docs/TASKS.md)）。
+
+## 開発コマンド
+
+```bash
+pnpm dev            # server + client 同時起動（Phase 0 PR 0.4 以降）
+pnpm build          # 全パッケージビルド
+pnpm typecheck      # 全パッケージの型検査
 pnpm lint           # ESLint
-pnpm test           # Vitest（1回実行）
-pnpm test:watch     # Vitest watch
+pnpm depcruise      # dependency-cruiser による依存方向の検査
+pnpm format:check   # Prettier チェック
+pnpm format         # Prettier 整形
+pnpm test           # Small + Medium テスト
+pnpm test:small     # Small テスト（Docker 不要）
+pnpm test:medium    # Medium テスト（Docker 必要）
 ```
 
-## アーキテクチャ
+## 構成（モノレポ / pnpm workspaces）
 
-テスト容易性のため、**純粋なシミュレーション層を描画から完全に分離**しています。
+| パッケージ | 役割                                    |
+| ---------- | --------------------------------------- |
+| `client`   | React 19 SPA（Vite + TanStack Router）  |
+| `server`   | Hono API サーバー（Clean Architecture） |
+| `shared`   | Zod スキーマによる API コントラクト     |
+| `infra`    | インフラ定義（MVP では最小）            |
 
-```
-src/
-  main.ts          # DOM/入力/RAF ループの配線のみ
-  sim/             # DOM・canvas に触れない純粋ロジック（単体テスト対象）
-    rng.ts         # seed 付き決定的 RNG
-    hash.ts        # text → 決定的 hue
-    thought.ts     # Thought 型と純粋関数（create/step/water）
-    world.ts       # 思考集合の管理（spawn/step/water/link/prune）
-  render/
-    renderer.ts    # canvas2D 描画のみ（薄く保つ）
-test/              # Vitest。sim 層を決定的にテスト
-```
+- サーバーは Clean Architecture + DDD（`shared-kernel` + 機能モジュールごとの
+  `domain` / `application` / `adapters` + 共通 `infrastructure`）。
+- クライアントは FSD（`app`/`pages`/`features`/`entities`/`shared`、`routes` は
+  TanStack Router）。
+- 依存方向は `.dependency-cruiser.js` で機械強制（CI でも検査）。
 
-`sim/` は副作用なし。乱数は `rng`、時間は明示 `dt` で注入し、テストを決定的に保ちます。
+## コントリビューション
+
+- 実装は **必ず PR を経由**（main 直コミット禁止）。Conventional Commits 必須
+  （commitlint）。ブランチ名は `<type>/<description>`。
+- PR は GitHub Copilot レビューを依頼し、指摘が収束＋CI 緑で rebase マージ。
+- 詳細な実装規約は [`.claude/rules/`](.claude/rules/) と
+  [CLAUDE.md](CLAUDE.md) を参照（こちらが正本）。

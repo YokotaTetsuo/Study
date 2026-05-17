@@ -5,79 +5,130 @@
 
 ## このリポジトリ
 
-体験コンセプト **「思考の席」** を実装した単一の TypeScript ブラウザアプリ。
-打った言葉が生き物になって画面を漂い、放置すると枯れ、クリックで水やりすると
-息を吹き返す「考えたことの生態系」。**永続化しない**（リロードで消えるのは仕様）。
+**PDF Review** — PDF をバージョン管理し、版にコメントを付け、承認フローを通す
+マルチユーザー Web アプリ（「PDF 版 GitHub」）。実装規約は同組織の姉妹リポ
+`tokyogas-tech/panoptiplan-web` に準拠する。
 
-> 注: `README.md` 冒頭の pip / venv / 社内プロキシのメモは別作業の名残で、
-> このアプリの動作には無関係。アプリは pnpm + Node のみで動く。
+> 旧「思考の席」アプリは破棄済み。**永続化は必須**（旧コンセプトの非永続方針は無効）。
+
+## ドキュメント
+
+- `docs/PLAN.md` — 設計計画（技術選定/構成/依存ルール/ドメインモデル/フェーズ）
+- `docs/TASKS.md` — フェーズを PR 単位へ分解したタスク一覧。実装はこれに沿う
+- `.claude/rules/` — 実装規約の**正本**（後述。コードとの齟齬は規約を優先し指摘）
+- `docs/reference/` — panoptiplan 由来の参照用設定サンプル（原文ママ・編集しない）
 
 ## セットアップ / 開発コマンド
 
-パッケージマネージャは **pnpm**、Node.js は **v24**。
+パッケージマネージャは **pnpm**（v10.33+）、Node.js は **v24**。
 
 ```bash
-pnpm install
-pnpm dev            # Vite 開発サーバ（ブラウザで開く）
-pnpm build          # 型ビルド + Vite 本番ビルド
-pnpm preview        # ビルド成果物をローカル配信
-pnpm typecheck      # tsc --noEmit
-pnpm lint           # ESLint
-pnpm lint:fix       # ESLint --fix
-pnpm format:check   # Prettier チェック
-pnpm format         # Prettier 整形
-pnpm test           # Vitest（1回実行）
-pnpm test:watch     # Vitest watch
+pnpm install                # 依存インストール（husky も準備される）
 
-# 単一テスト実行
-pnpm test <ファイルパス>
+pnpm dev                    # server + client 同時起動（Phase 0 PR 0.4 以降）
+pnpm build                  # 全パッケージビルド
+pnpm typecheck              # 全パッケージの型検査
+pnpm lint                   # ESLint
+pnpm depcruise              # dependency-cruiser によるアーキテクチャ違反検出
+pnpm format:check           # Prettier チェック
+pnpm format                 # Prettier 整形
+pnpm test                   # Small + Medium テスト
+pnpm test:small             # Small テスト（Docker 不要）
+pnpm test:medium            # Medium テスト（Docker 必要）
 ```
 
-## アーキテクチャ
+> DB / S3 / マイグレーション（docker compose、`.env.example`、
+> `pnpm --filter server db:migrate` 等）は Phase 0 PR 0.4 以降で導入する。
 
-テスト容易性のため **純粋なシミュレーション層を描画から完全に分離** する。
-これがこのリポの最重要設計方針。
+## モノレポ構成
 
-```
-src/
-  main.ts          # DOM/入力/RAF ループの配線のみ（ロジックを持たない）
-  sim/             # DOM・canvas に触れない純粋ロジック（単体テスト対象）
-    rng.ts         # seed 付き決定的 RNG（注入可能）
-    hash.ts        # text → 決定的 hue
-    thought.ts     # Thought 型と純粋関数（create/step/water）
-    world.ts       # 思考集合の管理（spawn/step/water/link/prune）
-  render/
-    renderer.ts    # canvas2D 描画のみ（薄く保つ。単体テスト対象外）
-test/              # Vitest。sim 層を決定的にテスト
-```
+pnpm workspaces による 4 パッケージ構成。
 
-- `sim/` は **副作用なし**。乱数は `rng`、時間は明示 `dt` で注入し、テストを決定的にする。
-- 新しいロジックは原則 `sim/` に置き、`render/` `main.ts` には状態やルールを持たせない。
+| パッケージ | 役割                                    |
+| ---------- | --------------------------------------- |
+| `client`   | React 19 SPA（Vite + TanStack Router）  |
+| `server`   | Hono API サーバー（Clean Architecture） |
+| `shared`   | Zod スキーマによる API コントラクト     |
+| `infra`    | インフラ定義（**MVP では最小**）        |
+
+**依存方向**: `client` → `shared` ← `server`。client から server への import は
+型のみ許可（Hono RPC の `AppType`）。panoptiplan の `repo-settings`(Pulumi) は
+**本リポでは対象外**（作らない）。
+
+## サーバーアーキテクチャ（Clean Architecture + DDD）
+
+`server/src/` は Clean Architecture + DDD をベースにした構成で、依存は外側→内側の
+一方向のみ（dependency-cruiser が機械強制）：
+
+- **shared-kernel/** — 複数コンテキストで共有するドメイン基盤と汎用インフラ抽象
+  ポート（`DomainError`、`IdGenerator`、`Clock`、`FileStorage` 等）。各モジュール
+  固有のポートはここに置かず、責務に応じて domain / application 層へ配置する。
+- 各機能モジュール（`health/`, `auth/`, `project/` …）配下に 3 層：
+  1. **domain/** — エンティティ、値オブジェクト、リポジトリインターフェース
+  2. **application/** — ユースケース、Result DTO、コンテキスト固有ポート
+  3. **adapters/** — コントローラー（Hono ルート）、ゲートウェイ（リポジトリ実装）
+- **infrastructure/** — `server/src/infrastructure/` に共通配置。DB 接続、HTTP 設定、
+  DI コンテナ（`composition/container.ts`）、エントリーポイント。
+
+> `auth/` モジュールは panoptiplan に存在しない本リポ独自。上記 Clean Architecture
+> に従って実装する。
+
+設計規約の詳細は以下を参照（**正本**）：
+
+- `.claude/rules/server-clean-architecture.md` — 層の責務・貧血回避・ポート境界
+- `.claude/rules/server-aggregate-internal-entity.md` — 集約内部エンティティの配置
+- `.claude/rules/server-application-result.md` — Application Result の Dayjs
+- `.claude/rules/server-hono-routes.md` — Hono ルート型推論保護
+
+## クライアントアーキテクチャ
+
+FSD（Feature-Sliced Design）を参考にしたレイヤー構成：
+
+- `app/` — プロバイダー、テーマ、ルーター設定
+- `pages/` — ページコンポーネント
+- `features/` — ユーザー操作・ビジネスアクション
+- `entities/` — ドメイン概念のクエリオプション・UI 表現
+- `routes/` — TanStack Router のファイルベースルーティング（`routeTree.gen.ts` は自動生成）
+- `shared/` — API クライアント（Hono RPC）、共通ユーティリティ
+
+UI は MUI v9。サーバー状態管理は TanStack React Query。詳細・Portal 配置規約は
+`.claude/rules/client-fsd.md`（**正本**）。
 
 ## 規約
 
-- **`as` 型アサーション禁止**: `.claude/rules/no-as-type-assertion.md` に従う。
-  `as const` のみ可。ESLint (`@typescript-eslint/consistent-type-assertions`) で
-  機械的に error 化されている。
-- **TypeScript strict**: `tsconfig.json` の strict 系オプションを緩めない。
-- **コミット**: Conventional Commits（`feat:`, `fix:`, `chore:`, `refactor:`,
-  `docs:`, `test:` …）。
-- **ブランチ名**: `<type>/<description>`。
-- **品質ゲート**: TS を変更したら停止前に `pnpm typecheck` / `pnpm lint` /
-  `pnpm test` がすべて通ること（Stop フックが自動で確認し、失敗時のみ block する）。
-- **永続化を足さない**: localStorage 等で思考を保存しないこと（コンセプトの核）。
+- **`as` 型アサーション禁止**: `.claude/rules/no-as-type-assertion.md` に従う
+  （`as const` のみ可。ESLint で機械的に error 化）。
+- **TypeScript strict**: `tsconfig.base.json` の strict 系を緩めない。
+- **コミット**: Conventional Commits 必須（commitlint で検証）。
+- **ブランチ名**: `<type>/<description>`（feat/, fix/, chore/, refactor/, docs/, test/)。
+- **エラー応答**: RFC 7807 Problem Details（`application/problem+json`）。
+- **バリデーション**: API 境界で Zod、ドメイン層は値オブジェクトのコンストラクタ。
+- **ID**: ULID を使用。
+- **dependency-cruiser**: `.dependency-cruiser.js` で層間・パッケージ間・FSD の依存
+  違反を検出。CI でもチェックされる。
+- **pre-commit フック**: husky + lint-staged（ESLint --fix + Prettier）/ commit-msg
+  （commitlint）。
+- **テスト**: 新規実装には対応するテストを併せて書く（原則 Small）。サイズ分類・
+  層別戦略・命名・Builder 等の詳細は `.claude/rules/testing.md`（**正本**）。
 
 ## 実装フロー（PR ベース）
 
-実装は **必ず PR を経由** し、main へ直接コミットしない。
+実装は **必ず PR を経由** し、main へ直接コミットしない。`docs/TASKS.md` の
+PR 粒度（1 機能スライス = 1 PR）に従い、各 PR 末に「ローカルで動かして確認する
+手順」を添える。
 
 1. `<type>/<description>` ブランチを切って実装する。
-2. ローカルで `pnpm typecheck` / `pnpm lint` / `pnpm format:check` / `pnpm test`
-   / `pnpm build` をすべて通す。
+2. ローカルで品質ゲート（後述）をすべて通す。
 3. push して PR を作成し、**GitHub Copilot にレビューを依頼**する
-   （`gh pr edit <n> --add-reviewer copilot-pull-request-reviewer`、
-   または Copilot review を request）。
-4. Copilot の指摘をすべて反映し、再 push してレビューを再依頼する。
-   **新規コメントが付かなくなるまで** これを繰り返す。
-5. コメントが収束し、CI（typecheck/lint/format/test/build）が緑になったら
-   **squash マージ**し、ブランチを削除する。
+   （`gh pr edit <n> --add-reviewer copilot-pull-request-reviewer`）。
+4. Copilot の指摘を反映し、再 push してレビューを再依頼する。
+   **新規の有効な指摘が付かなくなるまで** 繰り返す（再掲・誤検知は根拠を示す）。
+5. 指摘収束＋CI 緑で **rebase マージ**し、ブランチを削除する
+   （本リポは squash / merge commit が無効。rebase のみ）。
+6. client（`client/src/`）の変更を含む PR は `fsd-review` スキルを実行する。
+
+## 品質ゲート
+
+`pnpm typecheck` / `pnpm lint` / `pnpm depcruise` / `pnpm format:check` /
+`pnpm test` / `pnpm build` がすべて通ること。Stop フックが
+typecheck / lint / depcruise / test を自動確認し、失敗時のみ block する。
