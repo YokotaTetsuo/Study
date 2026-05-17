@@ -17,6 +17,7 @@ describe('UserId', () => {
     { input: VALID + 'A', reason: 'too long' },
     { input: '01HQ8ZK9PRSTVWXYZ23456789I', reason: 'contains I' },
     { input: '01HQ8ZK9PRSTVWXYZ23456789L', reason: 'contains L' },
+    { input: '81HQ8ZK9PRSTVWXYZ234567890', reason: 'first char above 7' },
   ])('should reject an invalid id ($reason)', ({ input }) => {
     expect(() => new UserId(input)).toThrow(ValidationError);
   });
