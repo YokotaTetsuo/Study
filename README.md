@@ -1,27 +1,40 @@
-# Study
-## コマンド
+# 思考の席
 
-pip install 通らない​場合の​ベストプラクティス
-pip install {ライブラリ名} --proxy http://ctg-proxy.tg-group.tokyo-gas.co.jp:8080 --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host pypi.org --default-timeout=100
+打った言葉が生き物になって画面を漂い、放置すると枯れ、クリックで水やりすると
+息を吹き返す——「考えたことの生態系」を体験する単一の TypeScript ブラウザアプリ。
 
-venvの仮想環境に入るコマンド
-source qcde_venv/Scripts/activate
+**永続化しません。** リロードで思考が消えるのは仕様です（コンセプトの核）。
 
-venvの仮想環境から出るコマンド
-deactivate
+## セットアップ / 開発
 
-プロキシ関係
-環境変数設定
-export HTTP_PROXY=http://tg-proxy.tg-group.tokyo-gas.co.jp:8080 export HTTPS_PROXY=http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
-git config --global https.proxy http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
-git config --global http.proxy http://tg-proxy.tg-group.tokyo-gas.co.jp:8080
+パッケージマネージャは **pnpm**、Node.js は **v24**。
 
-バックエンドで実行
- #サーバーをローカルで起動 (利用可能な環境: dev1, dev2, dev3, dev4, stg, prod)  ./devtool.sh exec dev2   # 環境情報の確認  ./devtool.sh env dev2   # テスト実行  ./devtool.sh test dev2
+```bash
+pnpm install
+pnpm dev            # Vite 開発サーバ
+pnpm build          # 型ビルド + Vite 本番ビルド
+pnpm preview        # ビルド成果物をローカル配信
+pnpm typecheck      # tsc --noEmit
+pnpm lint           # ESLint
+pnpm test           # Vitest（1回実行）
+pnpm test:watch     # Vitest watch
+```
 
-フロントエンド起動方法
+## アーキテクチャ
 
-npm run dev:[オプション]
-package.jsonに書かれたdevスクリプトを実行するコマンド
+テスト容易性のため、**純粋なシミュレーション層を描画から完全に分離**しています。
 
-pip install -r request
+```
+src/
+  main.ts          # DOM/入力/RAF ループの配線のみ
+  sim/             # DOM・canvas に触れない純粋ロジック（単体テスト対象）
+    rng.ts         # seed 付き決定的 RNG
+    hash.ts        # text → 決定的 hue
+    thought.ts     # Thought 型と純粋関数（create/step/water）
+    world.ts       # 思考集合の管理（spawn/step/water/link/prune）
+  render/
+    renderer.ts    # canvas2D 描画のみ（薄く保つ）
+test/              # Vitest。sim 層を決定的にテスト
+```
+
+`sim/` は副作用なし。乱数は `rng`、時間は明示 `dt` で注入し、テストを決定的に保ちます。
