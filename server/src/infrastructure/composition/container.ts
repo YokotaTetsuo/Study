@@ -5,6 +5,14 @@ import { GetMeUseCase } from '../../auth/application/get-me-usecase';
 import { LoginUseCase } from '../../auth/application/login-usecase';
 import { LogoutUseCase } from '../../auth/application/logout-usecase';
 import { RegisterUseCase } from '../../auth/application/register-usecase';
+import { DrizzleDocumentRepository } from '../../document/adapters/gateways/drizzle-document-repository';
+import { S3FileStorage } from '../../document/adapters/gateways/s3-file-storage';
+import { SqlProjectAccess } from '../../document/adapters/gateways/sql-project-access';
+import { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
+import { GetDocumentUseCase } from '../../document/application/get-document-usecase';
+import { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
+import { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
+import { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { SqlDbConnectivity } from '../../health/adapters/gateways/sql-db-connectivity';
 import { GetHealthUseCase } from '../../health/application/get-health-usecase';
 import { DrizzleProjectRepository } from '../../project/adapters/gateways/drizzle-project-repository';
@@ -22,6 +30,7 @@ import type { Env } from '../env';
 import { createApp } from '../http/app';
 import type { AppType } from '../http/app';
 import { UlidIdGenerator } from '../id/ulid-id-generator';
+import { createS3Client, ensureBucket } from '../storage/s3-client';
 
 /**
  * コンポジションルート。全依存をここで配線する。
@@ -29,6 +38,8 @@ import { UlidIdGenerator } from '../id/ulid-id-generator';
 export interface Container {
   readonly dbClient: DbClient;
   readonly app: AppType;
+  /** S3 バケット作成など、起動前に完了させる初期化。 */
+  readonly ready: Promise<void>;
 }
 
 export function createContainer(env: Env): Container {
@@ -50,6 +61,12 @@ export function createContainer(env: Env): Container {
   const projects = new DrizzleProjectRepository(dbClient.db);
   const userDirectory = new DrizzleUserDirectory(dbClient.db);
 
+  const s3Client = createS3Client(env);
+  const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
+  const documents = new DrizzleDocumentRepository(dbClient.db);
+  const projectAccess = new SqlProjectAccess(dbClient.sql);
+  const ready = ensureBucket(s3Client, env.S3_BUCKET);
+
   const app = createApp({
     getHealth,
     corsOrigin: env.CLIENT_ORIGIN,
@@ -70,7 +87,30 @@ export function createContainer(env: Env): Container {
       sessions,
       userDirectory,
     },
+    document: {
+      createDocument: new CreateDocumentUseCase({
+        documents,
+        projectAccess,
+        idGenerator,
+        clock,
+      }),
+      listDocuments: new ListDocumentsUseCase({ documents, projectAccess }),
+      getDocument: new GetDocumentUseCase({ documents, projectAccess }),
+      uploadVersion: new UploadVersionUseCase({
+        documents,
+        projectAccess,
+        fileStorage,
+        idGenerator,
+        clock,
+      }),
+      getVersionFile: new GetVersionFileUseCase({
+        documents,
+        projectAccess,
+        fileStorage,
+      }),
+      sessions,
+    },
   });
 
-  return { dbClient, app };
+  return { dbClient, app, ready };
 }

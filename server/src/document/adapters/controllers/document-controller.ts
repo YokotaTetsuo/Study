@@ -1,0 +1,308 @@
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import {
+  createDocumentRequestSchema,
+  documentResponseSchema,
+  problemDetailSchema,
+  versionStatusSchema,
+} from '@pdf-review/shared';
+import type { DocumentResponse } from '@pdf-review/shared';
+import type { Context } from 'hono';
+import { getCookie } from 'hono/cookie';
+
+import type { SessionStore } from '../../../auth/application/session-store';
+import type { CreateDocumentUseCase } from '../../application/create-document-usecase';
+import type { DocumentResult } from '../../application/document-result';
+import type { GetDocumentUseCase } from '../../application/get-document-usecase';
+import type { GetVersionFileUseCase } from '../../application/get-version-file-usecase';
+import type { ListDocumentsUseCase } from '../../application/list-documents-usecase';
+import type { UploadVersionUseCase } from '../../application/upload-version-usecase';
+
+import { toProblem } from './problem';
+
+const SESSION_COOKIE = 'sid';
+/** 版ファイルの上限。MVP では 50 MiB。 */
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const PDF_CONTENT_TYPE = 'application/pdf';
+
+const UNAUTHORIZED_BODY = {
+  type: 'about:blank',
+  title: 'Unauthorized',
+  status: 401,
+  detail: '認証が必要です',
+} as const;
+
+interface DocumentDeps {
+  readonly createDocument: Pick<CreateDocumentUseCase, 'execute'>;
+  readonly listDocuments: Pick<ListDocumentsUseCase, 'execute'>;
+  readonly getDocument: Pick<GetDocumentUseCase, 'execute'>;
+  readonly uploadVersion: Pick<UploadVersionUseCase, 'execute'>;
+  readonly getVersionFile: Pick<GetVersionFileUseCase, 'execute'>;
+  readonly sessions: SessionStore;
+}
+
+function serialize(result: DocumentResult): DocumentResponse {
+  return {
+    id: result.id,
+    projectId: result.projectId,
+    name: result.name,
+    createdAt: result.createdAt.toISOString(),
+    versions: result.versions.map((v) => ({
+      versionNumber: v.versionNumber,
+      // ドメイン上 'draft' のみ。契約スキーマで型を確定させる。
+      status: versionStatusSchema.parse(v.status),
+      uploadedBy: v.uploadedBy,
+      createdAt: v.createdAt.toISOString(),
+    })),
+  };
+}
+
+/* eslint-disable @typescript-eslint/naming-convention --
+   HTTP ステータス・MIME・ヘッダ名は外部仕様で決まる識別子のため対象外。 */
+const problemContent = {
+  'application/problem+json': { schema: problemDetailSchema },
+};
+const errorResponses = {
+  400: { description: 'リクエストが不正' as const, content: problemContent },
+  401: { description: '認証が必要' as const, content: problemContent },
+  403: { description: '権限がない' as const, content: problemContent },
+  404: { description: '対象が存在しない' as const, content: problemContent },
+  409: { description: '競合' as const, content: problemContent },
+  413: { description: 'ペイロード過大' as const, content: problemContent },
+  415: { description: '非対応の形式' as const, content: problemContent },
+  500: { description: 'サーバエラー' as const, content: problemContent },
+};
+const documentContent = {
+  'application/json': { schema: documentResponseSchema },
+};
+const documentListContent = {
+  'application/json': { schema: z.array(documentResponseSchema) },
+};
+const PROBLEM_HEADERS = {
+  'content-type': 'application/problem+json',
+} as const;
+const PDF_HEADERS = { 'content-type': PDF_CONTENT_TYPE } as const;
+
+const projectIdParam = z.object({ projectId: z.string() });
+const documentIdParam = z.object({ documentId: z.string() });
+
+const createRouteDef = createRoute({
+  method: 'post',
+  path: '/documents',
+  request: {
+    body: {
+      content: { 'application/json': { schema: createDocumentRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    201: { description: '作成成功' as const, content: documentContent },
+  },
+});
+
+const listRouteDef = createRoute({
+  method: 'get',
+  path: '/projects/{projectId}/documents',
+  request: { params: projectIdParam },
+  responses: {
+    ...errorResponses,
+    200: { description: '一覧' as const, content: documentListContent },
+  },
+});
+
+const getRouteDef = createRoute({
+  method: 'get',
+  path: '/documents/{documentId}',
+  request: { params: documentIdParam },
+  responses: {
+    ...errorResponses,
+    200: { description: '取得成功' as const, content: documentContent },
+  },
+});
+
+const uploadRouteDef = createRoute({
+  method: 'post',
+  path: '/documents/{documentId}/versions',
+  request: { params: documentIdParam },
+  responses: {
+    ...errorResponses,
+    201: { description: 'アップロード成功' as const, content: documentContent },
+  },
+});
+
+const downloadRouteDef = createRoute({
+  method: 'get',
+  path: '/documents/{documentId}/versions/{versionNumber}/file',
+  request: {
+    params: z.object({ documentId: z.string(), versionNumber: z.string() }),
+  },
+  responses: {
+    ...errorResponses,
+    200: {
+      description: 'PDF バイト列' as const,
+      content: { 'application/pdf': { schema: z.string() } },
+    },
+  },
+});
+/* eslint-enable @typescript-eslint/naming-convention */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type --
+   Hono RPC の型推論を保持するため戻り値型を明示しない
+   （.claude/rules/server-hono-routes.md）。 */
+export function createDocumentApp(deps: DocumentDeps) {
+  const resolveUserId = async (c: Context): Promise<string | null> => {
+    const sessionId = getCookie(c, SESSION_COOKIE);
+    if (sessionId === undefined) {
+      return null;
+    }
+    const userId = await deps.sessions.findUserId(sessionId);
+    return userId === null ? null : userId.value;
+  };
+
+  return new OpenAPIHono({
+    defaultHook: (result, c) => {
+      if (!result.success) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            detail: 'リクエストの検証に失敗しました',
+          },
+          400,
+          PROBLEM_HEADERS,
+        );
+      }
+      return undefined;
+    },
+  })
+    .openapi(createRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const body = c.req.valid('json');
+        const result = await deps.createDocument.execute({
+          projectId: body.projectId,
+          name: body.name,
+          actingUserId,
+        });
+        return c.json(serialize(result), 201);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(listRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const results = await deps.listDocuments.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+        });
+        return c.json(results.map(serialize), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(getRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const result = await deps.getDocument.execute({
+          documentId: c.req.valid('param').documentId,
+          actingUserId,
+        });
+        return c.json(serialize(result), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(uploadRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const form = await c.req.parseBody();
+        const file = form.file;
+        if (!(file instanceof File)) {
+          return c.json(
+            {
+              type: 'about:blank',
+              title: 'Bad Request',
+              status: 400,
+              detail: 'file フィールド（PDF）が必要です',
+            },
+            400,
+            PROBLEM_HEADERS,
+          );
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          return c.json(
+            {
+              type: 'about:blank',
+              title: 'Payload Too Large',
+              status: 413,
+              detail: 'ファイルサイズが上限を超えています',
+            },
+            413,
+            PROBLEM_HEADERS,
+          );
+        }
+        const data = new Uint8Array(await file.arrayBuffer());
+        const result = await deps.uploadVersion.execute({
+          documentId: c.req.valid('param').documentId,
+          actingUserId,
+          data,
+          contentType: file.type,
+        });
+        return c.json(serialize(result), 201);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(downloadRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const params = c.req.valid('param');
+        const versionNumber = Number(params.versionNumber);
+        if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+          return c.json(
+            {
+              type: 'about:blank',
+              title: 'Bad Request',
+              status: 400,
+              detail: 'versionNumber が不正です',
+            },
+            400,
+            PROBLEM_HEADERS,
+          );
+        }
+        const result = await deps.getVersionFile.execute({
+          documentId: params.documentId,
+          versionNumber,
+          actingUserId,
+        });
+        // ArrayBuffer 裏付けの Uint8Array に詰め替えて c.body の型と整合させる。
+        const bytes = new Uint8Array(result.data.byteLength);
+        bytes.set(result.data);
+        return c.body(bytes, 200, PDF_HEADERS);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    });
+}
+/* eslint-enable @typescript-eslint/explicit-function-return-type */

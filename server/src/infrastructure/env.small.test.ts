@@ -17,6 +17,12 @@ describe('loadEnv', () => {
       PORT: 3000,
       NODE_ENV: 'development',
       CLIENT_ORIGIN: 'http://localhost:5173',
+      S3_ENDPOINT: 'http://localhost:9000',
+      S3_REGION: 'us-east-1',
+      S3_BUCKET: 'pdfreview',
+      S3_ACCESS_KEY_ID: 'pdfreview',
+      S3_SECRET_ACCESS_KEY: 'pdfreview',
+      S3_FORCE_PATH_STYLE: true,
     });
   });
 

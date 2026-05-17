@@ -34,6 +34,14 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # S3 互換ストレージ（document の Medium テストで使用）
+      rustfs:
+        image: rustfs/rustfs:latest
+        env:
+          RUSTFS_ACCESS_KEY: pdfreview
+          RUSTFS_SECRET_KEY: pdfreview
+        ports:
+          - 9000:9000
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +69,16 @@ jobs:
 
       - name: Format check
         run: pnpm format:check
+
+      - name: Wait for S3 (rustfs)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null http://localhost:9000; then
+              echo "rustfs is up"; exit 0
+            fi
+            echo "waiting for rustfs... ($i)"; sleep 2
+          done
+          echo "rustfs did not become ready" >&2; exit 1
 
       - name: DB migrate
         run: pnpm --filter @pdf-review/server db:migrate

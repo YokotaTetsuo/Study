@@ -7,6 +7,12 @@ import type { LoginUseCase } from '../../auth/application/login-usecase';
 import type { LogoutUseCase } from '../../auth/application/logout-usecase';
 import type { RegisterUseCase } from '../../auth/application/register-usecase';
 import type { SessionStore } from '../../auth/application/session-store';
+import { createDocumentApp } from '../../document/adapters/controllers/document-controller';
+import type { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
+import type { GetDocumentUseCase } from '../../document/application/get-document-usecase';
+import type { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
+import type { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
+import type { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { createHealthApp } from '../../health/adapters/controllers/health-controller';
 import type { GetHealthUseCase } from '../../health/application/get-health-usecase';
 import { createProjectApp } from '../../project/adapters/controllers/project-controller';
@@ -39,6 +45,14 @@ interface AppDeps {
     readonly sessions: SessionStore;
     readonly userDirectory: UserDirectory;
   };
+  readonly document: {
+    readonly createDocument: CreateDocumentUseCase;
+    readonly listDocuments: ListDocumentsUseCase;
+    readonly getDocument: GetDocumentUseCase;
+    readonly uploadVersion: UploadVersionUseCase;
+    readonly getVersionFile: GetVersionFileUseCase;
+    readonly sessions: SessionStore;
+  };
 }
 
 /* eslint-disable @typescript-eslint/explicit-function-return-type --
@@ -48,11 +62,13 @@ export function createApp(deps: AppDeps) {
   const health = createHealthApp({ getHealth: deps.getHealth });
   const auth = createAuthApp(deps.auth);
   const project = createProjectApp(deps.project);
+  const document = createDocumentApp(deps.document);
   return new OpenAPIHono()
     .use('*', cors({ origin: deps.corsOrigin, credentials: true }))
     .route('/', health)
     .route('/', auth)
-    .route('/', project);
+    .route('/', project)
+    .route('/', document);
 }
 /* eslint-enable @typescript-eslint/explicit-function-return-type */
 

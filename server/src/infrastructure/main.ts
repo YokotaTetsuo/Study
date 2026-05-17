@@ -4,7 +4,9 @@ import { createContainer } from './composition/container';
 import { loadEnv } from './env';
 
 const env = loadEnv(process.env);
-const { app } = createContainer(env);
+const { app, ready } = createContainer(env);
+
+await ready;
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   // eslint-disable-next-line no-console -- サーバ起動ログ
