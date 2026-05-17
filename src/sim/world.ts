@@ -61,15 +61,19 @@ export class World {
    * 上限に達している場合は最も活力の低い思考を 1 つ追い出してから追加する。
    */
   spawn(text: string, x: number, y: number): Thought | null {
-    const jitterX = (this.rng() - 0.5) * SPAWN_JITTER_X;
-    const thought = createThought(text, {
+    const created = createThought(text, {
       id: `t${this.nextId}`,
-      x: x + jitterX,
+      x,
       y,
       rng: this.rng,
     });
-    if (thought === null) return null;
+    // 無効入力（空・空白のみ）では createThought が RNG を消費せず null を返す。
+    // ジッタもここで初めて RNG を消費するため、無効入力で乱数系列が進まない。
+    if (created === null) return null;
     this.nextId++;
+
+    const jitterX = (this.rng() - 0.5) * SPAWN_JITTER_X;
+    const thought: Thought = { ...created, x: created.x + jitterX };
 
     if (this.items.length >= MAX_THOUGHTS) {
       let weakestIndex = 0;
