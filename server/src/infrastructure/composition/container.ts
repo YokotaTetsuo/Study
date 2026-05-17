@@ -11,6 +11,8 @@ import { DrizzleProjectRepository } from '../../project/adapters/gateways/drizzl
 import { DrizzleUserDirectory } from '../../project/adapters/gateways/drizzle-user-directory';
 import { AddMemberUseCase } from '../../project/application/add-member-usecase';
 import { CreateProjectUseCase } from '../../project/application/create-project-usecase';
+import { GetProjectUseCase } from '../../project/application/get-project-usecase';
+import { ListProjectsUseCase } from '../../project/application/list-projects-usecase';
 import { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
 import { SystemClock } from '../clock/system-clock';
@@ -60,6 +62,8 @@ export function createContainer(env: Env): Container {
     },
     project: {
       createProject: new CreateProjectUseCase({ projects, idGenerator, clock }),
+      listProjects: new ListProjectsUseCase({ projects }),
+      getProject: new GetProjectUseCase({ projects }),
       addMember: new AddMemberUseCase({ projects, userDirectory }),
       setMemberRole: new SetMemberRoleUseCase({ projects }),
       updateApprovalPolicy: new UpdateApprovalPolicyUseCase({ projects }),

@@ -7,6 +7,8 @@ import {
 
 import { HomePage } from '../pages/home';
 import { LoginPage } from '../pages/login';
+import { ProjectSettingsPage } from '../pages/project-settings';
+import { ProjectsPage } from '../pages/projects';
 import { RegisterPage } from '../pages/register';
 
 const rootRoute = createRootRoute({ component: Outlet });
@@ -29,10 +31,24 @@ const registerRoute = createRoute({
   component: RegisterPage,
 });
 
+const projectsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects',
+  component: ProjectsPage,
+});
+
+const projectSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/settings',
+  component: ProjectSettingsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   registerRoute,
+  projectsRoute,
+  projectSettingsRoute,
 ]);
 
 export const router = createRouter({ routeTree });

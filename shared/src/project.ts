@@ -56,3 +56,6 @@ export const projectResponseSchema = z.object({
   members: z.array(projectMemberSchema),
 });
 export type ProjectResponse = z.infer<typeof projectResponseSchema>;
+
+export const projectListResponseSchema = z.array(projectResponseSchema);
+export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;

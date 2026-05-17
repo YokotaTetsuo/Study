@@ -5,10 +5,11 @@ import {
   Button,
   CircularProgress,
   Container,
+  Link as MuiLink,
   Toolbar,
   Typography,
 } from '@mui/material';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import type { ReactElement } from 'react';
 
@@ -75,9 +76,12 @@ export function HomePage(): ReactElement {
         </Toolbar>
       </AppBar>
       <Container sx={{ py: 4 }}>
-        <Typography>
+        <Typography gutterBottom>
           ようこそ、{me.data.displayName} さん（{me.data.email}）。
         </Typography>
+        <MuiLink component={Link} to="/projects">
+          プロジェクト一覧へ
+        </MuiLink>
       </Container>
     </Box>
   );
