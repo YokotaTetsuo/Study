@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SessionStore } from '../../../auth/application/session-store';
 import { UserId } from '../../../auth/domain/user-id';
 import { InMemoryUserDirectory, OWNER_ID } from '../../__tests__/fakes';
+import { MemberUserNotFoundError } from '../../application/member-user-not-found-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import type { ProjectResult } from '../../application/project-result';
 
@@ -156,6 +157,30 @@ describe('project controller', () => {
     );
 
     expect(res.status).toBe(200);
+  });
+
+  it('should map MemberUserNotFoundError to 404 problem', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      addMember: {
+        execute: vi.fn().mockRejectedValue(new MemberUserNotFoundError()),
+      },
+    });
+
+    const res = await app.request(
+      postJson(
+        `/projects/${RESULT.id}/members`,
+        { email: 'missing@example.com', role: 'reviewer' },
+        'sid=abc',
+      ),
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(404);
   });
 
   it('should return 401 for member endpoints without a session', async () => {
