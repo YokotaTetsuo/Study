@@ -61,6 +61,11 @@ describe('UploadVersionUseCase', () => {
     expect(result.versions[0]?.uploadedBy).toBe(MEMBER_ID);
     const stored = await fileStorage.get(`documents/${DOCUMENT_ID}/key-1.pdf`);
     expect(stored).toEqual(data);
+
+    // 永続化された事実をリポジトリから再取得して担保（save 漏れ検出）。
+    const persisted = await documents.findById(new DocumentId(DOCUMENT_ID));
+    expect(persisted?.versions).toHaveLength(1);
+    expect(persisted?.versions[0]?.versionNumber).toBe(1);
   });
 
   it('should reject a non-member', async () => {

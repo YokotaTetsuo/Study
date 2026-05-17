@@ -10,6 +10,7 @@ import {
   fixedClock,
   idGeneratorReturning,
 } from '../__tests__/fakes';
+import { DocumentId } from '../domain/document-id';
 
 import { CreateDocumentUseCase } from './create-document-usecase';
 import { NotAuthorizedError } from './not-authorized-error';
@@ -34,6 +35,10 @@ describe('CreateDocumentUseCase', () => {
     expect(result.projectId).toBe(PROJECT_ID);
     expect(result.name).toBe('設計書');
     expect(result.versions).toEqual([]);
+
+    // 永続化された事実をリポジトリから再取得して担保（save 漏れ検出）。
+    const persisted = await documents.findById(new DocumentId(DOCUMENT_ID));
+    expect(persisted?.name.value).toBe('設計書');
   });
 
   it('should reject a non-member', async () => {
