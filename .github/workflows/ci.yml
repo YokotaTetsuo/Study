@@ -36,7 +36,7 @@ jobs:
           --health-retries 10
       # S3 互換ストレージ（document の Medium テストで使用）
       rustfs:
-        image: rustfs/rustfs:latest
+        image: rustfs/rustfs:1.0.0-beta.3
         env:
           RUSTFS_ACCESS_KEY: pdfreview
           RUSTFS_SECRET_KEY: pdfreview
