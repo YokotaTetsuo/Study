@@ -1,0 +1,283 @@
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import {
+  addMemberRequestSchema,
+  createProjectRequestSchema,
+  problemDetailSchema,
+  projectResponseSchema,
+  setMemberRoleRequestSchema,
+  updateApprovalPolicyRequestSchema,
+} from '@pdf-review/shared';
+import type { ProjectResponse } from '@pdf-review/shared';
+import type { Context } from 'hono';
+import { getCookie } from 'hono/cookie';
+
+import type { SessionStore } from '../../../auth/application/session-store';
+import type { AddMemberUseCase } from '../../application/add-member-usecase';
+import type { CreateProjectUseCase } from '../../application/create-project-usecase';
+import type { ProjectResult } from '../../application/project-result';
+import type { SetMemberRoleUseCase } from '../../application/set-member-role-usecase';
+import type { UpdateApprovalPolicyUseCase } from '../../application/update-approval-policy-usecase';
+import type { UserDirectory } from '../../application/user-directory';
+
+import { toProblem } from './problem';
+
+const SESSION_COOKIE = 'sid';
+
+interface ProjectDeps {
+  readonly createProject: Pick<CreateProjectUseCase, 'execute'>;
+  readonly addMember: Pick<AddMemberUseCase, 'execute'>;
+  readonly setMemberRole: Pick<SetMemberRoleUseCase, 'execute'>;
+  readonly updateApprovalPolicy: Pick<UpdateApprovalPolicyUseCase, 'execute'>;
+  readonly sessions: SessionStore;
+  readonly userDirectory: UserDirectory;
+}
+
+async function toProjectResponse(
+  result: ProjectResult,
+  directory: UserDirectory,
+): Promise<ProjectResponse> {
+  const profiles = await directory.findProfiles(
+    result.members.map((m) => m.userId),
+  );
+  return projectResponseSchema.parse({
+    id: result.id,
+    name: result.name,
+    createdAt: result.createdAt.toISOString(),
+    approvalPolicy: {
+      requiredApprovals: result.approvalPolicy.requiredApprovals,
+      approverRoles: [...result.approvalPolicy.approverRoles],
+    },
+    members: result.members.map((m) => {
+      const p = profiles.get(m.userId);
+      return {
+        userId: m.userId,
+        email: p?.email ?? '',
+        displayName: p?.displayName ?? '',
+        role: m.role,
+      };
+    }),
+  });
+}
+
+/* eslint-disable @typescript-eslint/naming-convention --
+   HTTP ステータス・MIME・ヘッダ名は外部仕様で決まる識別子のため対象外。 */
+const problemContent = {
+  'application/problem+json': { schema: problemDetailSchema },
+};
+const errorResponses = {
+  400: { description: 'リクエストが不正' as const, content: problemContent },
+  401: { description: '認証が必要' as const, content: problemContent },
+  403: { description: '権限がない' as const, content: problemContent },
+  404: { description: '対象が存在しない' as const, content: problemContent },
+  409: { description: '競合' as const, content: problemContent },
+  500: { description: 'サーバエラー' as const, content: problemContent },
+};
+const projectContent = {
+  'application/json': { schema: projectResponseSchema },
+};
+const PROBLEM_HEADERS = {
+  'content-type': 'application/problem+json',
+} as const;
+
+const projectIdParam = z.object({ projectId: z.string() });
+
+const createRouteDef = createRoute({
+  method: 'post',
+  path: '/projects',
+  request: {
+    body: {
+      content: { 'application/json': { schema: createProjectRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    201: { description: '作成成功' as const, content: projectContent },
+  },
+});
+
+const addMemberRouteDef = createRoute({
+  method: 'post',
+  path: '/projects/{projectId}/members',
+  request: {
+    params: projectIdParam,
+    body: {
+      content: { 'application/json': { schema: addMemberRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: '更新成功' as const, content: projectContent },
+  },
+});
+
+const setRoleRouteDef = createRoute({
+  method: 'put',
+  path: '/projects/{projectId}/members/{userId}',
+  request: {
+    params: z.object({ projectId: z.string(), userId: z.string() }),
+    body: {
+      content: { 'application/json': { schema: setMemberRoleRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: '更新成功' as const, content: projectContent },
+  },
+});
+
+const updatePolicyRouteDef = createRoute({
+  method: 'put',
+  path: '/projects/{projectId}/approval-policy',
+  request: {
+    params: projectIdParam,
+    body: {
+      content: {
+        'application/json': { schema: updateApprovalPolicyRequestSchema },
+      },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: '更新成功' as const, content: projectContent },
+  },
+});
+/* eslint-enable @typescript-eslint/naming-convention */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type --
+   Hono RPC の型推論を保持するため戻り値型を明示しない
+   （.claude/rules/server-hono-routes.md）。 */
+export function createProjectApp(deps: ProjectDeps) {
+  const requireUser = async (c: Context): Promise<string | null> => {
+    const sessionId = getCookie(c, SESSION_COOKIE);
+    if (sessionId === undefined) {
+      return null;
+    }
+    const userId = await deps.sessions.findUserId(sessionId);
+    return userId === null ? null : userId.value;
+  };
+
+  const app = new OpenAPIHono({
+    defaultHook: (result, c) => {
+      if (!result.success) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            detail: 'リクエストの検証に失敗しました',
+          },
+          400,
+          PROBLEM_HEADERS,
+        );
+      }
+      return undefined;
+    },
+  })
+    .openapi(createRouteDef, async (c) => {
+      const actingUserId = await requireUser(c);
+      if (actingUserId === null) {
+        const p = toProblem(undefined);
+        return c.json(
+          { ...p.body, title: 'Unauthorized', status: 401 },
+          401,
+          PROBLEM_HEADERS,
+        );
+      }
+      try {
+        const result = await deps.createProject.execute({
+          name: c.req.valid('json').name,
+          ownerUserId: actingUserId,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 201);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(addMemberRouteDef, async (c) => {
+      const actingUserId = await requireUser(c);
+      if (actingUserId === null) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Unauthorized',
+            status: 401,
+            detail: '認証が必要です',
+          },
+          401,
+          PROBLEM_HEADERS,
+        );
+      }
+      try {
+        const body = c.req.valid('json');
+        const result = await deps.addMember.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+          email: body.email,
+          role: body.role,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(setRoleRouteDef, async (c) => {
+      const actingUserId = await requireUser(c);
+      if (actingUserId === null) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Unauthorized',
+            status: 401,
+            detail: '認証が必要です',
+          },
+          401,
+          PROBLEM_HEADERS,
+        );
+      }
+      try {
+        const params = c.req.valid('param');
+        const result = await deps.setMemberRole.execute({
+          projectId: params.projectId,
+          actingUserId,
+          userId: params.userId,
+          role: c.req.valid('json').role,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(updatePolicyRouteDef, async (c) => {
+      const actingUserId = await requireUser(c);
+      if (actingUserId === null) {
+        return c.json(
+          {
+            type: 'about:blank',
+            title: 'Unauthorized',
+            status: 401,
+            detail: '認証が必要です',
+          },
+          401,
+          PROBLEM_HEADERS,
+        );
+      }
+      try {
+        const body = c.req.valid('json');
+        const result = await deps.updateApprovalPolicy.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+          requiredApprovals: body.requiredApprovals,
+          approverRoles: body.approverRoles,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    });
+  return app;
+}
+/* eslint-enable @typescript-eslint/explicit-function-return-type */

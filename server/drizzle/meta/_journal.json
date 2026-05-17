@@ -8,6 +8,13 @@
       "when": 1779022275873,
       "tag": "0000_broken_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779033423608,
+      "tag": "0001_cold_rage",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,12 @@ import { LogoutUseCase } from '../../auth/application/logout-usecase';
 import { RegisterUseCase } from '../../auth/application/register-usecase';
 import { SqlDbConnectivity } from '../../health/adapters/gateways/sql-db-connectivity';
 import { GetHealthUseCase } from '../../health/application/get-health-usecase';
+import { DrizzleProjectRepository } from '../../project/adapters/gateways/drizzle-project-repository';
+import { DrizzleUserDirectory } from '../../project/adapters/gateways/drizzle-user-directory';
+import { AddMemberUseCase } from '../../project/application/add-member-usecase';
+import { CreateProjectUseCase } from '../../project/application/create-project-usecase';
+import { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
+import { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
 import { SystemClock } from '../clock/system-clock';
 import { createDbClient } from '../db/client';
 import type { DbClient } from '../db/client';
@@ -39,6 +45,9 @@ export function createContainer(env: Env): Container {
     idGenerator,
   });
 
+  const projects = new DrizzleProjectRepository(dbClient.db);
+  const userDirectory = new DrizzleUserDirectory(dbClient.db);
+
   const app = createApp({
     getHealth,
     corsOrigin: env.CLIENT_ORIGIN,
@@ -48,6 +57,14 @@ export function createContainer(env: Env): Container {
       logout: new LogoutUseCase({ sessions }),
       getMe: new GetMeUseCase({ users, sessions }),
       cookieSecure: env.NODE_ENV === 'production',
+    },
+    project: {
+      createProject: new CreateProjectUseCase({ projects, idGenerator, clock }),
+      addMember: new AddMemberUseCase({ projects, userDirectory }),
+      setMemberRole: new SetMemberRoleUseCase({ projects }),
+      updateApprovalPolicy: new UpdateApprovalPolicyUseCase({ projects }),
+      sessions,
+      userDirectory,
     },
   });
 
