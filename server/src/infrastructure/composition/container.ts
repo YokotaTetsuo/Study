@@ -41,6 +41,7 @@ export function createContainer(env: Env): Container {
 
   const app = createApp({
     getHealth,
+    corsOrigin: env.CLIENT_ORIGIN,
     auth: {
       register: new RegisterUseCase({ users, hasher, idGenerator, clock }),
       login: new LoginUseCase({ users, hasher, sessions }),

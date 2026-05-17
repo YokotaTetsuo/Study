@@ -152,16 +152,22 @@ export function createAuthApp(deps: AuthDeps) {
       }
     })
     .openapi(logoutRoute, async (c) => {
+      const sessionId = getCookie(c, SESSION_COOKIE);
       try {
-        const sessionId = getCookie(c, SESSION_COOKIE);
         if (sessionId !== undefined) {
           await deps.logout.execute({ sessionId });
-          deleteCookie(c, SESSION_COOKIE, { path: '/' });
         }
         return c.body(null, 204);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);
+      } finally {
+        // 成否に関わらず常にクッキーを失効させ、クライアントが復旧可能にする。
+        deleteCookie(c, SESSION_COOKIE, {
+          path: '/',
+          secure: deps.cookieSecure,
+          sameSite: 'Lax',
+        });
       }
     })
     .openapi(meRoute, async (c) => {

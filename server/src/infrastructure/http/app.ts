@@ -11,6 +11,8 @@ import type { GetHealthUseCase } from '../../health/application/get-health-useca
 
 interface AppDeps {
   readonly getHealth: GetHealthUseCase;
+  /** Cookie 認証のため、許可するブラウザ Origin（非ワイルドカード）。 */
+  readonly corsOrigin: string;
   readonly auth: {
     readonly register: RegisterUseCase;
     readonly login: LoginUseCase;
@@ -26,7 +28,10 @@ interface AppDeps {
 export function createApp(deps: AppDeps) {
   const health = createHealthApp({ getHealth: deps.getHealth });
   const auth = createAuthApp(deps.auth);
-  return new OpenAPIHono().use('*', cors()).route('/', health).route('/', auth);
+  return new OpenAPIHono()
+    .use('*', cors({ origin: deps.corsOrigin, credentials: true }))
+    .route('/', health)
+    .route('/', auth);
 }
 /* eslint-enable @typescript-eslint/explicit-function-return-type */
 
