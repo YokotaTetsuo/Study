@@ -3,6 +3,7 @@ import type { Dayjs } from 'dayjs';
 
 import type { Clock } from '../../shared-kernel/clock';
 import type { IdGenerator } from '../../shared-kernel/id-generator';
+import type { UserDirectory, UserProfile } from '../application/user-directory';
 import type { Project } from '../domain/project';
 import type { ProjectId } from '../domain/project-id';
 import type { ProjectRepository } from '../domain/project-repository';
@@ -11,6 +12,7 @@ export const FIXED_NOW: Dayjs = dayjs('2026-05-18T00:00:00.000Z');
 export const PROJECT_ID_1 = '01HQ8ZK9PRSTVWXYZ234567890';
 export const OWNER_ID = '01HQ8ZK9PRSTVWXYZ23456789A';
 export const MEMBER_ID = '01HQ8ZK9PRSTVWXYZ23456789B';
+export const MEMBER_EMAIL = 'member@example.com';
 
 export const fixedClock: Clock = { now: () => FIXED_NOW };
 
@@ -28,5 +30,31 @@ export class InMemoryProjectRepository implements ProjectRepository {
   save(project: Project): Promise<void> {
     this.#byId.set(project.id.value, project);
     return Promise.resolve();
+  }
+}
+
+/** インメモリの email→userId / プロフィール解決。 */
+export class InMemoryUserDirectory implements UserDirectory {
+  readonly #profiles: readonly UserProfile[];
+
+  constructor(profiles: readonly UserProfile[]) {
+    this.#profiles = profiles;
+  }
+
+  findUserIdByEmail(email: string): Promise<string | null> {
+    const found = this.#profiles.find((p) => p.email === email);
+    return Promise.resolve(found?.userId ?? null);
+  }
+
+  findProfiles(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, UserProfile>> {
+    const map = new Map<string, UserProfile>();
+    for (const p of this.#profiles) {
+      if (userIds.includes(p.userId)) {
+        map.set(p.userId, p);
+      }
+    }
+    return Promise.resolve(map);
   }
 }
