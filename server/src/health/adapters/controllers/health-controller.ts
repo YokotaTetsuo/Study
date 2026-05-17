@@ -31,7 +31,9 @@ const healthRoute = createRoute({
 /* eslint-disable @typescript-eslint/explicit-function-return-type --
    Hono のメソッドチェーン/ハンドラの型推論を保持するため戻り値型を明示しない
    （.claude/rules/server-hono-routes.md）。 */
-export function createHealthApp(deps: { getHealth: GetHealthUseCase }) {
+export function createHealthApp(deps: {
+  getHealth: Pick<GetHealthUseCase, 'execute'>;
+}) {
   return new OpenAPIHono().openapi(healthRoute, async (c) => {
     const result = await deps.getHealth.execute();
     return c.json(toResponse(result), 200);
