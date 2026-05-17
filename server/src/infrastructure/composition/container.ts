@@ -65,7 +65,7 @@ export function createContainer(env: Env): Container {
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   const documents = new DrizzleDocumentRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
-  const ready = ensureBucket(s3Client, env.S3_BUCKET);
+  const ready = ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
 
   const app = createApp({
     getHealth,
