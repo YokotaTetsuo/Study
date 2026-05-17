@@ -34,9 +34,11 @@ function main(): void {
   // 日本語 IME 変換確定の Enter では発火させない。
   input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing) return;
+    // spawn 位置のジッタは World 内の注入済み RNG で決定的に与える
+    // （main 側で Math.random を使わず、乱数源を sim に統一する）。
     const spawned = world.spawn(
       input.value,
-      window.innerWidth / 2 + (Math.random() - 0.5) * 80,
+      window.innerWidth / 2,
       window.innerHeight * 0.72,
     );
     if (spawned !== null) {
