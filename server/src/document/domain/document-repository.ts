@@ -7,7 +7,7 @@ import type { DocumentProjectId } from './document-project-id';
  */
 export interface DocumentRepository {
   findById(id: DocumentId): Promise<Document | null>;
-  /** 指定プロジェクトに属する文書を作成日時順で返す。 */
+  /** 指定プロジェクトに属する文書を作成日時の昇順で返す。 */
   listByProject(projectId: DocumentProjectId): Promise<readonly Document[]>;
   save(document: Document): Promise<void>;
 }

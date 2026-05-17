@@ -30,7 +30,7 @@ describe('ListDocumentsUseCase', () => {
     );
     const useCase = new ListDocumentsUseCase({
       documents,
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
     });
 
     const result = await useCase.execute({
@@ -45,7 +45,7 @@ describe('ListDocumentsUseCase', () => {
   it('should reject a non-member', async () => {
     const useCase = new ListDocumentsUseCase({
       documents: new InMemoryDocumentRepository(),
-      projectAccess: new FakeProjectAccess([MEMBER_ID]),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
     });
 
     await expect(
