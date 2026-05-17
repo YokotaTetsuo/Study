@@ -10,14 +10,22 @@
     "typecheck": "tsc -b"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^25.0.1",
     "vite": "^6.4.2"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^6.5.0",
     "@pdf-review/server": "workspace:*",
     "@pdf-review/shared": "workspace:*",
+    "@tanstack/react-query": "^5.100.10",
+    "@tanstack/react-router": "^1.170.4",
     "hono": "^4.12.19",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
