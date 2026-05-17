@@ -1,4 +1,5 @@
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -12,17 +13,21 @@ import { useEffect } from 'react';
 import type { ReactElement } from 'react';
 
 import { useLogout, useMe } from '../../../features/auth';
+import { isApiError } from '../../../shared/api/api-error';
 
 export function HomePage(): ReactElement {
   const navigate = useNavigate();
   const me = useMe();
   const logout = useLogout();
 
+  const unauthenticated =
+    me.isError && isApiError(me.error) && me.error.status === 401;
+
   useEffect(() => {
-    if (me.isError) {
+    if (unauthenticated) {
       void navigate({ to: '/login' });
     }
-  }, [me.isError, navigate]);
+  }, [unauthenticated, navigate]);
 
   if (me.isPending) {
     return (
@@ -32,8 +37,17 @@ export function HomePage(): ReactElement {
     );
   }
 
-  if (me.data === undefined) {
-    return <Box sx={{ py: 8 }} />;
+  if (me.isError) {
+    if (unauthenticated) {
+      return <Box sx={{ py: 8 }} />;
+    }
+    return (
+      <Container sx={{ py: 6 }}>
+        <Alert severity="error">
+          サーバーに接続できませんでした。時間をおいて再度お試しください。
+        </Alert>
+      </Container>
+    );
   }
 
   return (

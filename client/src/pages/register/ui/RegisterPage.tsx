@@ -3,6 +3,19 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
 import { RegisterForm, useRegister } from '../../../features/auth';
+import { isApiError } from '../../../shared/api/api-error';
+
+function registerErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    if (error.status === 409) {
+      return 'このメールアドレスは既に使用されています';
+    }
+    if (error.status === 400) {
+      return '入力内容を確認してください（パスワードは8文字以上）';
+    }
+  }
+  return '通信エラーが発生しました。時間をおいて再度お試しください';
+}
 
 export function RegisterPage(): ReactElement {
   const navigate = useNavigate();
@@ -16,9 +29,7 @@ export function RegisterPage(): ReactElement {
       <RegisterForm
         pending={register.isPending}
         errorMessage={
-          register.isError
-            ? '登録に失敗しました（メール重複・入力不備など）'
-            : undefined
+          register.isError ? registerErrorMessage(register.error) : undefined
         }
         onSubmit={(values) => {
           register.mutate(values, {

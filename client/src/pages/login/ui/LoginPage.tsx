@@ -3,6 +3,14 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
 import { LoginForm, useLogin } from '../../../features/auth';
+import { isApiError } from '../../../shared/api/api-error';
+
+function loginErrorMessage(error: unknown): string {
+  if (isApiError(error) && error.status === 401) {
+    return 'メールアドレスまたはパスワードが正しくありません';
+  }
+  return '通信エラーが発生しました。時間をおいて再度お試しください';
+}
 
 export function LoginPage(): ReactElement {
   const navigate = useNavigate();
@@ -16,9 +24,7 @@ export function LoginPage(): ReactElement {
       <LoginForm
         pending={login.isPending}
         errorMessage={
-          login.isError
-            ? 'メールアドレスまたはパスワードが正しくありません'
-            : undefined
+          login.isError ? loginErrorMessage(login.error) : undefined
         }
         onSubmit={(values) => {
           login.mutate(values, {
