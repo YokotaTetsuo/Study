@@ -9,9 +9,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "echo 'dev は Phase 0 PR 0.4 で server+client を配線します' && exit 0",
+    "dev": "concurrently --names server,client -c blue,green \"pnpm --filter @pdf-review/server dev\" \"pnpm --filter @pdf-review/client dev\"",
     "typecheck": "tsc -b",
-    "build": "tsc -b",
+    "build": "pnpm --filter @pdf-review/server build && pnpm --filter @pdf-review/client build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -47,6 +47,7 @@
     "@commitlint/config-conventional": "^20.5.3",
     "@types/node": "^24.12.4",
     "@vitest/coverage-v8": "^3.0.5",
+    "concurrently": "^9.2.1",
     "dependency-cruiser": "^17.4.0",
     "eslint": "^9.39.0",
     "eslint-config-prettier": "^9.1.2",

@@ -1,6 +1,5 @@
 /**
- * @pdf-review/server — Hono API（Clean Architecture + DDD）。
- * Phase 0 PR 0.4 で health モジュールと Hono アプリを配線する。
- * 現状はパッケージ骨格のみ。
+ * @pdf-review/server — client から型のみ参照する公開面。
+ * Hono RPC のエンドツーエンド型安全性に用いる AppType を公開する。
  */
-export const SERVER_PACKAGE = '@pdf-review/server';
+export type { AppType } from './infrastructure/http/app';
