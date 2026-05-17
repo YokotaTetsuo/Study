@@ -17,13 +17,14 @@ export function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: { preventDefault: () => void }): void => {
-    e.preventDefault();
-    onSubmit({ email, password });
-  };
-
   return (
-    <Box component="form" onSubmit={handleSubmit}>
+    <Box
+      component="form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ email, password });
+      }}
+    >
       <Stack spacing={2}>
         {errorMessage !== undefined && (
           <Alert severity="error">{errorMessage}</Alert>

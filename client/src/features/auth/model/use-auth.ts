@@ -46,8 +46,8 @@ export function useLogout(): UseMutationResult<void, Error, void> {
   return useMutation({
     mutationFn: logoutApi,
     onSuccess: () => {
-      qc.setQueryData(ME_QUERY_KEY, null);
-      void qc.invalidateQueries({ queryKey: ME_QUERY_KEY });
+      // 認証状態を未取得へ戻す（null を入れず型不整合を避ける）。
+      qc.removeQueries({ queryKey: ME_QUERY_KEY });
     },
   });
 }

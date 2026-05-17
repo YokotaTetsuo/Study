@@ -18,13 +18,14 @@ export function RegisterForm({
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
 
-  const handleSubmit = (e: { preventDefault: () => void }): void => {
-    e.preventDefault();
-    onSubmit({ email, password, displayName });
-  };
-
   return (
-    <Box component="form" onSubmit={handleSubmit}>
+    <Box
+      component="form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ email, password, displayName });
+      }}
+    >
       <Stack spacing={2}>
         {errorMessage !== undefined && (
           <Alert severity="error">{errorMessage}</Alert>
