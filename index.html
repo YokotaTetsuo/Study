@@ -77,8 +77,11 @@
       }
       #about {
         position: fixed;
-        /* 下部の #bar と構造的に競合しないよう上部に配置し、
-           ノッチ/丸角の端末でも隠れないよう safe area を加味する。 */
+        /* 下部の #bar と構造的に競合しないよう上部に配置する。
+           env() 非対応ブラウザでは下記の素の宣言が活き、対応ブラウザでは
+           続く calc() が上書きしてノッチ/丸角端末の safe area を加味する。 */
+        top: 14px;
+        left: 18px;
         top: calc(14px + env(safe-area-inset-top, 0px));
         left: calc(18px + env(safe-area-inset-left, 0px));
         max-width: min(360px, 78vw);
