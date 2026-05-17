@@ -18,7 +18,7 @@ import {
 import { projectRoleSchema } from '@pdf-review/shared';
 import type { ProjectRole } from '@pdf-review/shared';
 import { useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import {
@@ -43,6 +43,14 @@ export function ProjectSettingsPage(): ReactElement {
   const [newRole, setNewRole] = useState<ProjectRole>('reviewer');
   const [required, setRequired] = useState(1);
   const [approverRoles, setApproverRoles] = useState<ProjectRole[]>(['owner']);
+
+  const policy = project.data?.approvalPolicy;
+  useEffect(() => {
+    if (policy !== undefined) {
+      setRequired(policy.requiredApprovals);
+      setApproverRoles([...policy.approverRoles]);
+    }
+  }, [policy]);
 
   if (project.isPending) {
     return (

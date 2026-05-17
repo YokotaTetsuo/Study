@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { ApprovalPolicy } from '../../domain/approval-policy';
 import type { MemberUserId } from '../../domain/member-user-id';
@@ -58,18 +58,45 @@ export class DrizzleProjectRepository implements ProjectRepository {
   }
 
   async listByMember(userId: MemberUserId): Promise<readonly Project[]> {
-    const idRows = await this.#db
-      .select({ projectId: projectMembers.projectId })
-      .from(projectMembers)
-      .where(eq(projectMembers.userId, userId.value));
-    const projectList: Project[] = [];
-    for (const { projectId } of idRows) {
-      const project = await this.findById(new ProjectId(projectId));
-      if (project !== null) {
-        projectList.push(project);
+    return this.#db.transaction(async (tx) => {
+      const idRows = await tx
+        .select({ projectId: projectMembers.projectId })
+        .from(projectMembers)
+        .where(eq(projectMembers.userId, userId.value));
+      const ids = idRows.map((r) => r.projectId);
+      if (ids.length === 0) {
+        return [];
       }
-    }
-    return projectList;
+      const projectRows = await tx
+        .select()
+        .from(projects)
+        .where(inArray(projects.id, ids));
+      const memberRows = await tx
+        .select()
+        .from(projectMembers)
+        .where(inArray(projectMembers.projectId, ids));
+      const membersByProject = new Map<
+        string,
+        { userId: string; role: string }[]
+      >();
+      for (const m of memberRows) {
+        const list = membersByProject.get(m.projectId) ?? [];
+        list.push({ userId: m.userId, role: m.role });
+        membersByProject.set(m.projectId, list);
+      }
+      return projectRows.map((row) =>
+        Project.reconstruct({
+          id: new ProjectId(row.id),
+          name: new ProjectName(row.name),
+          createdAt: dayjs(row.createdAt),
+          membersData: membersByProject.get(row.id) ?? [],
+          approvalPolicy: new ApprovalPolicy({
+            requiredApprovals: row.requiredApprovals,
+            approverRoles: row.approverRoles.map((r) => new ProjectRole(r)),
+          }),
+        }),
+      );
+    });
   }
 
   async save(project: Project): Promise<void> {
