@@ -20,6 +20,10 @@ import type { UpdateApprovalPolicyUseCase } from '../../application/update-appro
 import type { UserDirectory } from '../../application/user-directory';
 
 import { toProblem } from './problem';
+import {
+  MemberProfileMissingError,
+  ResponseSerializationError,
+} from './serialization-errors';
 
 const SESSION_COOKIE = 'sid';
 
@@ -37,20 +41,6 @@ interface ProjectDeps {
   readonly updateApprovalPolicy: Pick<UpdateApprovalPolicyUseCase, 'execute'>;
   readonly sessions: SessionStore;
   readonly userDirectory: UserDirectory;
-}
-
-class MemberProfileMissingError extends Error {
-  constructor() {
-    super('member profile not found');
-    this.name = 'MemberProfileMissingError';
-  }
-}
-
-class ResponseSerializationError extends Error {
-  constructor() {
-    super('failed to serialize project response');
-    this.name = 'ResponseSerializationError';
-  }
 }
 
 async function toProjectResponse(
