@@ -1,3 +1,4 @@
+import { userResponseSchema } from '@pdf-review/shared';
 import type { UserResponse } from '@pdf-review/shared';
 import { queryOptions } from '@tanstack/react-query';
 
@@ -10,7 +11,7 @@ async function fetchMe(): Promise<UserResponse> {
   if (res.status !== 200) {
     throw new Error('unauthenticated');
   }
-  return res.json();
+  return userResponseSchema.parse(await res.json());
 }
 
 export const meQueryOptions = queryOptions({

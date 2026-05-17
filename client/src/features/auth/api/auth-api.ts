@@ -28,5 +28,8 @@ export async function loginApi(input: LoginRequest): Promise<UserResponse> {
 }
 
 export async function logoutApi(): Promise<void> {
-  await apiClient.auth.logout.$post();
+  const res = await apiClient.auth.logout.$post();
+  if (res.status !== 204) {
+    throw new Error(`logout failed (${String(res.status)})`);
+  }
 }
