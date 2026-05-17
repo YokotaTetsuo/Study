@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   quality:
-    name: typecheck / lint / format / test / build
+    name: typecheck / lint / depcruise / format / test / build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,9 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: Depcruise
+        run: pnpm depcruise
 
       - name: Format check
         run: pnpm format:check
