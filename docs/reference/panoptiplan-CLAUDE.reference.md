@@ -1,3 +1,15 @@
+> **参照用・原文ママ（編集しない）**: 本ファイルは tokyogas-tech/panoptiplan-web の
+> `CLAUDE.md` をそのまま保存したもの。PR 0.3 で本リポの `CLAUDE.md` を整備する際の手本。
+> **本プロジェクトでの差分（取り込み時に必ず反映すること）**:
+> - `repo-settings`(Pulumi) パッケージは **対象外（作らない）**。モノレポ構成表に含めない。
+> - `infra` は MVP では最小に留める。
+> - 認証 `auth/` モジュールは panoptiplan に無い本リポ独自（Clean Architecture 準拠）。
+> - 規約の正本は本リポ `.claude/rules/` 配下。テストの Large/E2E は本リポ Phase 6.3〈任意〉。
+>
+> 詳細は `docs/PLAN.md` / `docs/TASKS.md` を参照。
+
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

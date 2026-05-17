@@ -133,7 +133,7 @@
 
 ### PR 4.2 server application/adapters/infra: ワークフロー API
 - [ ] usecase: submitVersion / approve / requestChanges / reject / publishOfficial（単一責務・Command/Query）
-- [ ] ロール権限を ApprovalPolicy で判定（usecase 層）、permanence + controller
+- [ ] ロール権限を ApprovalPolicy で判定（usecase 層）、永続化(persistence) + controller
 - [ ] Small + 必要に応じ Medium（複数集約アトミック更新時は理由コメント付き）
 - **確認手順**: curl で submit→approve×必要数→Approved→publish→Official、別経路で requestChanges
 
