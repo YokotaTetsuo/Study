@@ -26,6 +26,8 @@ export function DocumentDetailPage(): ReactElement {
   const document = useDocument(documentId);
   const upload = useUploadVersion(documentId);
   const [file, setFile] = useState<File | null>(null);
+  // input を再マウントして同一ファイルの再選択でも onChange を発火させる。
+  const [inputKey, setInputKey] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
 
   const versions = document.data?.versions;
@@ -68,6 +70,7 @@ export function DocumentDetailPage(): ReactElement {
             upload.mutate(file, {
               onSuccess: () => {
                 setFile(null);
+                setInputKey((k) => k + 1);
               },
             });
           }
@@ -77,6 +80,7 @@ export function DocumentDetailPage(): ReactElement {
           <Button component="label" variant="outlined">
             {file !== null ? file.name : 'PDF を選択'}
             <input
+              key={inputKey}
               hidden
               type="file"
               accept="application/pdf"
