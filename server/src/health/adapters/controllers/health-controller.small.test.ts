@@ -1,21 +1,22 @@
 import dayjs from 'dayjs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { Clock } from '../../../shared-kernel/clock';
-import type { DbConnectivityPort } from '../../application/db-connectivity-port';
-import { GetHealthUseCase } from '../../application/get-health-usecase';
+import type { GetHealthUseCase } from '../../application/get-health-usecase';
 
 import { createHealthApp } from './health-controller';
 
 const FIXED = dayjs('2026-05-17T12:00:00.000Z');
-const clock: Clock = { now: () => FIXED };
-const db: DbConnectivityPort = { isReachable: () => Promise.resolve(true) };
 
 describe('GET /health', () => {
-  it('should return 200 with the health response shape', async () => {
-    const app = createHealthApp({
-      getHealth: new GetHealthUseCase({ clock, db }),
-    });
+  it('should return 200 and convert the use case result to the response shape', async () => {
+    // Controller テストは HTTP 境界のみ検証する。UseCase はモックする
+    // （.claude/rules/testing.md「Controller は UseCase をモック」）。
+    const getHealth: Pick<GetHealthUseCase, 'execute'> = {
+      execute: vi
+        .fn()
+        .mockResolvedValue({ status: 'ok', db: 'up', checkedAt: FIXED }),
+    };
+    const app = createHealthApp({ getHealth });
 
     const res = await app.request('/health');
 
