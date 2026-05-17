@@ -33,3 +33,17 @@ export type {
   ProjectResponse,
   ProjectListResponse,
 } from './project';
+export {
+  versionStatusSchema,
+  createDocumentRequestSchema,
+  documentVersionSchema,
+  documentResponseSchema,
+  documentListResponseSchema,
+} from './document';
+export type {
+  VersionStatus,
+  CreateDocumentRequest,
+  DocumentVersion,
+  DocumentResponse,
+  DocumentListResponse,
+} from './document';
