@@ -17,6 +17,7 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
+  CLIENT_ORIGIN: z.string().url().default('http://localhost:5173'),
 });
 /* eslint-enable @typescript-eslint/naming-convention */
 

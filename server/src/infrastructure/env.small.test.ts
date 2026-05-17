@@ -16,6 +16,7 @@ describe('loadEnv', () => {
       DB_NAME: 'pdfreview',
       PORT: 3000,
       NODE_ENV: 'development',
+      CLIENT_ORIGIN: 'http://localhost:5173',
     });
   });
 
@@ -38,5 +39,17 @@ describe('loadEnv', () => {
 
   it('should reject an empty required string', () => {
     expect(() => loadEnv({ DB_NAME: '' })).toThrow();
+  });
+
+  it('should preserve a valid NODE_ENV and reject an invalid one', () => {
+    expect(loadEnv({ NODE_ENV: 'production' }).NODE_ENV).toBe('production');
+    expect(() => loadEnv({ NODE_ENV: 'staging' })).toThrow();
+  });
+
+  it('should reject a non-URL CLIENT_ORIGIN', () => {
+    expect(
+      loadEnv({ CLIENT_ORIGIN: 'https://app.example.com' }).CLIENT_ORIGIN,
+    ).toBe('https://app.example.com');
+    expect(() => loadEnv({ CLIENT_ORIGIN: 'not-a-url' })).toThrow();
   });
 });

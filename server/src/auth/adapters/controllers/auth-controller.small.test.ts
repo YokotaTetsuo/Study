@@ -7,7 +7,6 @@ import { InvalidCredentialsError } from '../../application/invalid-credentials-e
 import type { LoginUseCase } from '../../application/login-usecase';
 import type { LogoutUseCase } from '../../application/logout-usecase';
 import type { RegisterUseCase } from '../../application/register-usecase';
-import { UnauthenticatedError } from '../../application/unauthenticated-error';
 import type { UserResult } from '../../application/user-result';
 
 import { createAuthApp } from './auth-controller';
@@ -75,6 +74,10 @@ describe('auth controller', () => {
     );
 
     expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(400);
   });
 
   it('should set an httpOnly session cookie on login', async () => {
@@ -116,18 +119,16 @@ describe('auth controller', () => {
     expect(problemDetailSchema.parse(await res.json()).status).toBe(401);
   });
 
-  it('should return 401 for /auth/me without a valid session', async () => {
-    const app = createAuthApp(
-      deps({
-        getMe: {
-          execute: vi.fn().mockRejectedValue(new UnauthenticatedError()),
-        },
-      }),
-    );
+  it('should return 401 problem for /auth/me without a session cookie', async () => {
+    const app = createAuthApp(deps({}));
 
     const res = await app.request('http://local/auth/me');
 
     expect(res.status).toBe(401);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(401);
   });
 
   it('should return 204 on logout', async () => {

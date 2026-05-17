@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const problemDetailSchema = z.object({
   type: z.string(),
   title: z.string(),
-  status: z.number().int(),
+  status: z.number().int().min(100).max(599),
   detail: z.string().optional(),
 });
 
