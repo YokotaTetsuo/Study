@@ -42,6 +42,7 @@ function deps(over: {
     },
     logout: over.logout ?? { execute: vi.fn().mockResolvedValue(undefined) },
     getMe: over.getMe ?? { execute: vi.fn().mockResolvedValue(RESULT) },
+    cookieSecure: false,
   };
 }
 
@@ -109,6 +110,9 @@ describe('auth controller', () => {
     );
 
     expect(res.status).toBe(401);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
     expect(problemDetailSchema.parse(await res.json()).status).toBe(401);
   });
 

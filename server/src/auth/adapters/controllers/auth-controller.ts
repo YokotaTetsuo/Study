@@ -12,6 +12,7 @@ import type { GetMeUseCase } from '../../application/get-me-usecase';
 import type { LoginUseCase } from '../../application/login-usecase';
 import type { LogoutUseCase } from '../../application/logout-usecase';
 import type { RegisterUseCase } from '../../application/register-usecase';
+import { UnauthenticatedError } from '../../application/unauthenticated-error';
 import type { UserResult } from '../../application/user-result';
 
 import { toProblem } from './problem';
@@ -23,6 +24,8 @@ interface AuthDeps {
   readonly login: Pick<LoginUseCase, 'execute'>;
   readonly logout: Pick<LogoutUseCase, 'execute'>;
   readonly getMe: Pick<GetMeUseCase, 'execute'>;
+  /** 本番(HTTPS)では true。Cookie の Secure 属性。 */
+  readonly cookieSecure: boolean;
 }
 
 function toUserResponse(result: UserResult): UserResponse {
@@ -35,7 +38,7 @@ function toUserResponse(result: UserResult): UserResponse {
 }
 
 /* eslint-disable @typescript-eslint/naming-convention --
-   HTTP ステータスコード・MIME タイプ・Cookie 設定は外部仕様で決まる
+   HTTP ステータスコード・MIME タイプ・Cookie/ヘッダ名は外部仕様で決まる
    識別子のため camelCase 規約の対象外。 */
 const problemContent = {
   'application/problem+json': { schema: problemDetailSchema },
@@ -50,11 +53,13 @@ const errorResponses = {
 const userContent = {
   'application/json': { schema: userResponseSchema },
 };
-const COOKIE_OPTS = {
+const PROBLEM_HEADERS = {
+  'content-type': 'application/problem+json',
+} as const;
+const BASE_COOKIE_OPTS = {
   httpOnly: true,
   sameSite: 'Lax',
   path: '/',
-  secure: false,
 } as const;
 
 const registerRoute = createRoute({
@@ -106,6 +111,8 @@ const meRoute = createRoute({
    Hono RPC のエンドツーエンド型推論を保持するため戻り値型を明示しない
    （.claude/rules/server-hono-routes.md）。 */
 export function createAuthApp(deps: AuthDeps) {
+  const cookieOpts = { ...BASE_COOKIE_OPTS, secure: deps.cookieSecure };
+
   return new OpenAPIHono({
     defaultHook: (result, c) => {
       if (!result.success) {
@@ -117,6 +124,7 @@ export function createAuthApp(deps: AuthDeps) {
             detail: 'リクエストの検証に失敗しました',
           },
           400,
+          PROBLEM_HEADERS,
         );
       }
       return undefined;
@@ -128,7 +136,7 @@ export function createAuthApp(deps: AuthDeps) {
         return c.json(toUserResponse(result), 201);
       } catch (e) {
         const p = toProblem(e);
-        return c.json(p.body, p.status);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
       }
     })
     .openapi(loginRoute, async (c) => {
@@ -136,29 +144,38 @@ export function createAuthApp(deps: AuthDeps) {
         const { user, sessionId } = await deps.login.execute(
           c.req.valid('json'),
         );
-        setCookie(c, SESSION_COOKIE, sessionId, COOKIE_OPTS);
+        setCookie(c, SESSION_COOKIE, sessionId, cookieOpts);
         return c.json(toUserResponse(user), 200);
       } catch (e) {
         const p = toProblem(e);
-        return c.json(p.body, p.status);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
       }
     })
     .openapi(logoutRoute, async (c) => {
-      const sessionId = getCookie(c, SESSION_COOKIE);
-      if (sessionId !== undefined) {
-        await deps.logout.execute({ sessionId });
-        deleteCookie(c, SESSION_COOKIE, { path: '/' });
+      try {
+        const sessionId = getCookie(c, SESSION_COOKIE);
+        if (sessionId !== undefined) {
+          await deps.logout.execute({ sessionId });
+          deleteCookie(c, SESSION_COOKIE, { path: '/' });
+        }
+        return c.body(null, 204);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
       }
-      return c.body(null, 204);
     })
     .openapi(meRoute, async (c) => {
+      const sessionId = getCookie(c, SESSION_COOKIE);
+      if (sessionId === undefined) {
+        const p = toProblem(new UnauthenticatedError());
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
       try {
-        const sessionId = getCookie(c, SESSION_COOKIE) ?? '';
         const result = await deps.getMe.execute({ sessionId });
         return c.json(toUserResponse(result), 200);
       } catch (e) {
         const p = toProblem(e);
-        return c.json(p.body, p.status);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
       }
     });
 }
