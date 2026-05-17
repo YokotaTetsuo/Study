@@ -3,7 +3,8 @@ coverage
 pnpm-lock.yaml
 README.md
 
-# 設計計画・参照用サンプル・実装規約。panoptiplan 由来で原文ママ保持する。
-# Phase 0 で panoptiplan の Prettier 設定へ移行後はその設定下で準拠済みとなる。
-docs
+# 参照用サンプルと実装規約は panoptiplan 由来で原文ママ保持する。
+# 運用する設計ドキュメント(docs/PLAN.md, docs/TASKS.md)は整形対象に残す。
+# Phase 0 で panoptiplan の Prettier 設定へ移行後はこれらも当設定下で準拠済みとなる。
+docs/reference
 .claude
