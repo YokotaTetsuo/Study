@@ -1,7 +1,8 @@
 import { ValidationError } from '../../shared-kernel/validation-error';
 
-// Crockford base32 / ULID（26 文字）
-const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+// ULID（26 文字 Crockford base32）。128bit エンコードのため
+// 先頭文字は 0-7 のみ（タイムスタンプ上限）。
+const ULID_PATTERN = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 
 /**
  * ユーザー ID 値オブジェクト。ULID 形式を強制する。
