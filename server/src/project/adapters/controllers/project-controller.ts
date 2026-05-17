@@ -23,6 +23,13 @@ import { toProblem } from './problem';
 
 const SESSION_COOKIE = 'sid';
 
+const UNAUTHORIZED_BODY = {
+  type: 'about:blank',
+  title: 'Unauthorized',
+  status: 401,
+  detail: '認証が必要です',
+} as const;
+
 interface ProjectDeps {
   readonly createProject: Pick<CreateProjectUseCase, 'execute'>;
   readonly addMember: Pick<AddMemberUseCase, 'execute'>;
@@ -32,6 +39,13 @@ interface ProjectDeps {
   readonly userDirectory: UserDirectory;
 }
 
+class MemberProfileMissingError extends Error {
+  constructor() {
+    super('member profile not found');
+    this.name = 'MemberProfileMissingError';
+  }
+}
+
 async function toProjectResponse(
   result: ProjectResult,
   directory: UserDirectory,
@@ -39,6 +53,18 @@ async function toProjectResponse(
   const profiles = await directory.findProfiles(
     result.members.map((m) => m.userId),
   );
+  const members = result.members.map((m) => {
+    const profile = profiles.get(m.userId);
+    if (profile === undefined) {
+      throw new MemberProfileMissingError();
+    }
+    return {
+      userId: m.userId,
+      email: profile.email,
+      displayName: profile.displayName,
+      role: m.role,
+    };
+  });
   return projectResponseSchema.parse({
     id: result.id,
     name: result.name,
@@ -47,15 +73,7 @@ async function toProjectResponse(
       requiredApprovals: result.approvalPolicy.requiredApprovals,
       approverRoles: [...result.approvalPolicy.approverRoles],
     },
-    members: result.members.map((m) => {
-      const p = profiles.get(m.userId);
-      return {
-        userId: m.userId,
-        email: p?.email ?? '',
-        displayName: p?.displayName ?? '',
-        role: m.role,
-      };
-    }),
+    members,
   });
 }
 
@@ -147,7 +165,7 @@ const updatePolicyRouteDef = createRoute({
    Hono RPC の型推論を保持するため戻り値型を明示しない
    （.claude/rules/server-hono-routes.md）。 */
 export function createProjectApp(deps: ProjectDeps) {
-  const requireUser = async (c: Context): Promise<string | null> => {
+  const resolveUserId = async (c: Context): Promise<string | null> => {
     const sessionId = getCookie(c, SESSION_COOKIE);
     if (sessionId === undefined) {
       return null;
@@ -156,7 +174,7 @@ export function createProjectApp(deps: ProjectDeps) {
     return userId === null ? null : userId.value;
   };
 
-  const app = new OpenAPIHono({
+  return new OpenAPIHono({
     defaultHook: (result, c) => {
       if (!result.success) {
         return c.json(
@@ -174,16 +192,11 @@ export function createProjectApp(deps: ProjectDeps) {
     },
   })
     .openapi(createRouteDef, async (c) => {
-      const actingUserId = await requireUser(c);
-      if (actingUserId === null) {
-        const p = toProblem(undefined);
-        return c.json(
-          { ...p.body, title: 'Unauthorized', status: 401 },
-          401,
-          PROBLEM_HEADERS,
-        );
-      }
       try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
         const result = await deps.createProject.execute({
           name: c.req.valid('json').name,
           ownerUserId: actingUserId,
@@ -195,20 +208,11 @@ export function createProjectApp(deps: ProjectDeps) {
       }
     })
     .openapi(addMemberRouteDef, async (c) => {
-      const actingUserId = await requireUser(c);
-      if (actingUserId === null) {
-        return c.json(
-          {
-            type: 'about:blank',
-            title: 'Unauthorized',
-            status: 401,
-            detail: '認証が必要です',
-          },
-          401,
-          PROBLEM_HEADERS,
-        );
-      }
       try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
         const body = c.req.valid('json');
         const result = await deps.addMember.execute({
           projectId: c.req.valid('param').projectId,
@@ -223,20 +227,11 @@ export function createProjectApp(deps: ProjectDeps) {
       }
     })
     .openapi(setRoleRouteDef, async (c) => {
-      const actingUserId = await requireUser(c);
-      if (actingUserId === null) {
-        return c.json(
-          {
-            type: 'about:blank',
-            title: 'Unauthorized',
-            status: 401,
-            detail: '認証が必要です',
-          },
-          401,
-          PROBLEM_HEADERS,
-        );
-      }
       try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
         const params = c.req.valid('param');
         const result = await deps.setMemberRole.execute({
           projectId: params.projectId,
@@ -251,20 +246,11 @@ export function createProjectApp(deps: ProjectDeps) {
       }
     })
     .openapi(updatePolicyRouteDef, async (c) => {
-      const actingUserId = await requireUser(c);
-      if (actingUserId === null) {
-        return c.json(
-          {
-            type: 'about:blank',
-            title: 'Unauthorized',
-            status: 401,
-            detail: '認証が必要です',
-          },
-          401,
-          PROBLEM_HEADERS,
-        );
-      }
       try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
         const body = c.req.valid('json');
         const result = await deps.updateApprovalPolicy.execute({
           projectId: c.req.valid('param').projectId,
@@ -278,6 +264,5 @@ export function createProjectApp(deps: ProjectDeps) {
         return c.json(p.body, p.status, PROBLEM_HEADERS);
       }
     });
-  return app;
 }
 /* eslint-enable @typescript-eslint/explicit-function-return-type */

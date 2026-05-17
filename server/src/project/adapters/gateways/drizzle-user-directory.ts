@@ -19,10 +19,12 @@ export class DrizzleUserDirectory implements UserDirectory {
   }
 
   async findUserIdByEmail(email: string): Promise<string | null> {
+    // auth 側の保存正規化（trim/lowercase）に合わせて防御的に正規化。
+    const normalized = email.trim().toLowerCase();
     const rows = await this.#db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, email))
+      .where(eq(users.email, normalized))
       .limit(1);
     return rows[0]?.id ?? null;
   }

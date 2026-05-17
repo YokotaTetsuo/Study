@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SessionStore } from '../../../auth/application/session-store';
 import { UserId } from '../../../auth/domain/user-id';
 import { InMemoryUserDirectory, OWNER_ID } from '../../__tests__/fakes';
+import { NotAuthorizedError } from '../../application/not-authorized-error';
 import type { ProjectResult } from '../../application/project-result';
 
 import { createProjectApp } from './project-controller';
@@ -100,5 +101,73 @@ describe('project controller', () => {
 
     expect(res.status).toBe(400);
     expect(problemDetailSchema.parse(await res.json()).status).toBe(400);
+  });
+
+  it('should add a member (200) for an owner', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+
+    const res = await app.request(
+      postJson(
+        `/projects/${RESULT.id}/members`,
+        { email: 'owner@example.com', role: 'reviewer' },
+        'sid=abc',
+      ),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should map NotAuthorizedError to 403 problem', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      addMember: {
+        execute: vi.fn().mockRejectedValue(new NotAuthorizedError()),
+      },
+    });
+
+    const res = await app.request(
+      postJson(
+        `/projects/${RESULT.id}/members`,
+        { email: 'owner@example.com', role: 'reviewer' },
+        'sid=abc',
+      ),
+    );
+
+    expect(res.status).toBe(403);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(403);
+  });
+
+  it('should update the approval policy (200) for an owner', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', 'sid=abc');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/approval-policy`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          requiredApprovals: 2,
+          approverRoles: ['owner'],
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should return 401 for member endpoints without a session', async () => {
+    const app = createProjectApp(deps(anonSessions));
+
+    const res = await app.request(
+      postJson(`/projects/${RESULT.id}/members`, {
+        email: 'owner@example.com',
+        role: 'reviewer',
+      }),
+    );
+
+    expect(res.status).toBe(401);
   });
 });
