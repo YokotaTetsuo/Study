@@ -1,5 +1,4 @@
 import {
-  BucketAlreadyExists,
   BucketAlreadyOwnedByYou,
   BucketLocationConstraint,
   CreateBucketCommand,
@@ -69,10 +68,9 @@ export async function ensureBucket(
       }),
     );
   } catch (e) {
-    if (
-      e instanceof BucketAlreadyOwnedByYou ||
-      e instanceof BucketAlreadyExists
-    ) {
+    // 自分が所有する既存バケットのみ許容。BucketAlreadyExists（他アカウント
+    // 所有の同名バケット）は誤った環境を指す危険があるため再 throw する。
+    if (e instanceof BucketAlreadyOwnedByYou) {
       return;
     }
     throw e;
