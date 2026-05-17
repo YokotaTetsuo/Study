@@ -122,11 +122,20 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           target: documents.id,
           set: { name: docRow.name },
         });
-      await tx
-        .delete(documentVersions)
+      // 版はイミュータブルな追記専用。全削除→再 insert は並行アップロード時に
+      // 既存版を破壊しうるため、未登録の版のみを素の insert で追加する。
+      // 同一版番号の競合は複合主キー違反として伝播し、片方の採番が黙って
+      // 失われることを防ぐ。
+      const existing = await tx
+        .select({ versionNumber: documentVersions.versionNumber })
+        .from(documentVersions)
         .where(eq(documentVersions.documentId, document.id.value));
-      if (versionRows.length > 0) {
-        await tx.insert(documentVersions).values(versionRows);
+      const persisted = new Set(existing.map((r) => r.versionNumber));
+      const toInsert = versionRows.filter(
+        (v) => !persisted.has(v.versionNumber),
+      );
+      if (toInsert.length > 0) {
+        await tx.insert(documentVersions).values(toInsert);
       }
     });
   }
