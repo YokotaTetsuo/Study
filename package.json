@@ -18,7 +18,24 @@
     "format:check": "prettier --check .",
     "depcruise": "dependency-cruise --config .dependency-cruiser.js server/src client/src shared/src infra/src",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:small": "vitest run --project small --passWithNoTests",
+    "test:medium": "vitest run --project medium --passWithNoTests",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write --ignore-path .prettierignore"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write --ignore-path .prettierignore"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -26,6 +43,8 @@
     ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "@types/node": "^24.12.4",
     "@vitest/coverage-v8": "^3.0.5",
     "dependency-cruiser": "^17.4.0",
@@ -33,7 +52,9 @@
     "eslint-config-prettier": "^9.1.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",
+    "husky": "^9.1.7",
     "jiti": "^2.7.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.39.0",
