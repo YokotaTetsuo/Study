@@ -19,6 +19,7 @@ import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import { DocumentProjectId } from '../domain/document-project-id';
 
 import { NotAuthorizedError } from './not-authorized-error';
+import { UnsupportedContentTypeError } from './unsupported-content-type-error';
 import { UploadVersionUseCase } from './upload-version-usecase';
 
 async function seededRepo(): Promise<InMemoryDocumentRepository> {
@@ -98,5 +99,24 @@ describe('UploadVersionUseCase', () => {
         contentType: 'application/pdf',
       }),
     ).rejects.toThrow(DocumentNotFoundError);
+  });
+
+  it('should reject a non-PDF content type', async () => {
+    const useCase = new UploadVersionUseCase({
+      documents: await seededRepo(),
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      fileStorage: new InMemoryFileStorage(),
+      idGenerator: sequentialIdGenerator('key-'),
+      clock: fixedClock,
+    });
+
+    await expect(
+      useCase.execute({
+        documentId: DOCUMENT_ID,
+        actingUserId: MEMBER_ID,
+        data: new Uint8Array([1]),
+        contentType: 'image/png',
+      }),
+    ).rejects.toThrow(UnsupportedContentTypeError);
   });
 });

@@ -81,12 +81,14 @@ export class InMemoryFileStorage implements FileStorage {
   readonly #store = new Map<string, Uint8Array>();
 
   put(key: string, data: Uint8Array, _contentType: string): Promise<void> {
-    this.#store.set(key, data);
+    // 実ストレージ境界を模し、呼び出し側バッファとの参照共有を断つ。
+    this.#store.set(key, new Uint8Array(data));
     return Promise.resolve();
   }
 
   get(key: string): Promise<Uint8Array | null> {
-    return Promise.resolve(this.#store.get(key) ?? null);
+    const found = this.#store.get(key);
+    return Promise.resolve(found === undefined ? null : new Uint8Array(found));
   }
 }
 

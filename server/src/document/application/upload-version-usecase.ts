@@ -11,6 +11,9 @@ import { toDocumentResult } from './document-result';
 import type { DocumentResult } from './document-result';
 import { NotAuthorizedError } from './not-authorized-error';
 import type { ProjectAccess } from './project-access';
+import { UnsupportedContentTypeError } from './unsupported-content-type-error';
+
+const PDF_CONTENT_TYPE = 'application/pdf';
 
 export interface UploadVersionCommand {
   readonly documentId: string;
@@ -44,6 +47,11 @@ export class UploadVersionUseCase {
   }
 
   async execute(command: UploadVersionCommand): Promise<DocumentResult> {
+    // 版は PDF のみ。ペイロード署名・サイズ上限の検証は PR 3.2 の
+    // controller 境界（multipart 受け口）で行う。
+    if (command.contentType.trim().toLowerCase() !== PDF_CONTENT_TYPE) {
+      throw new UnsupportedContentTypeError(command.contentType);
+    }
     const document = await this.#documents.findById(
       new DocumentId(command.documentId),
     );
