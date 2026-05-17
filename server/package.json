@@ -3,8 +3,29 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
+    "dev": "tsx watch --env-file=../.env src/infrastructure/main.ts",
+    "start": "tsx --env-file=../.env src/infrastructure/main.ts",
     "typecheck": "tsc -b",
     "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.22.1",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.14",
+    "@hono/zod-openapi": "^0.18.4",
+    "@pdf-review/shared": "workspace:*",
+    "dayjs": "^1.11.20",
+    "hono": "^4.12.19",
+    "pg": "^8.20.0",
+    "zod": "^3.25.76"
   }
 }

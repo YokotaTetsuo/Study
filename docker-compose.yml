@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: pdfreview
+      POSTGRES_PASSWORD: pdfreview
+      POSTGRES_DB: pdfreview
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pdfreview']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3 互換ストレージ。Phase 3 で利用（health では未使用）。
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: pdfreview
+      RUSTFS_SECRET_KEY: pdfreview
+    ports:
+      - '9000:9000'
+    volumes:
+      - rustfsdata:/data
+
+volumes:
+  pgdata:
+  rustfsdata:
