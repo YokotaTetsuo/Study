@@ -46,6 +46,13 @@ class MemberProfileMissingError extends Error {
   }
 }
 
+class ResponseSerializationError extends Error {
+  constructor() {
+    super('failed to serialize project response');
+    this.name = 'ResponseSerializationError';
+  }
+}
+
 async function toProjectResponse(
   result: ProjectResult,
   directory: UserDirectory,
@@ -65,7 +72,7 @@ async function toProjectResponse(
       role: m.role,
     };
   });
-  return projectResponseSchema.parse({
+  const parsed = projectResponseSchema.safeParse({
     id: result.id,
     name: result.name,
     createdAt: result.createdAt.toISOString(),
@@ -75,6 +82,10 @@ async function toProjectResponse(
     },
     members,
   });
+  if (!parsed.success) {
+    throw new ResponseSerializationError();
+  }
+  return parsed.data;
 }
 
 /* eslint-disable @typescript-eslint/naming-convention --
