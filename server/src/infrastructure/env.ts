@@ -14,6 +14,9 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().min(1).default('pdfreview'),
   DB_NAME: z.string().min(1).default('pdfreview'),
   PORT: tcpPort.default(3000),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
 });
 /* eslint-enable @typescript-eslint/naming-convention */
 

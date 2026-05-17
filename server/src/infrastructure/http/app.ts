@@ -16,6 +16,7 @@ interface AppDeps {
     readonly login: LoginUseCase;
     readonly logout: LogoutUseCase;
     readonly getMe: GetMeUseCase;
+    readonly cookieSecure: boolean;
   };
 }
 

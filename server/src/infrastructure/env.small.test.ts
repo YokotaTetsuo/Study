@@ -15,6 +15,7 @@ describe('loadEnv', () => {
       DB_PASSWORD: 'pdfreview',
       DB_NAME: 'pdfreview',
       PORT: 3000,
+      NODE_ENV: 'development',
     });
   });
 

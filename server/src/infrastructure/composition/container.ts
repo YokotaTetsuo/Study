@@ -46,6 +46,7 @@ export function createContainer(env: Env): Container {
       login: new LoginUseCase({ users, hasher, sessions }),
       logout: new LogoutUseCase({ sessions }),
       getMe: new GetMeUseCase({ users, sessions }),
+      cookieSecure: env.NODE_ENV === 'production',
     },
   });
 
