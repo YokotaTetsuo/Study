@@ -10,11 +10,12 @@ import { S3FileStorage } from './s3-file-storage';
 
 // 他スイートと衝突しないようスイート固有バケットを使う（testing 規約 5）。
 const BUCKET = 'pdfreview-s3-file-storage-test';
-const client = createS3Client(loadEnv(process.env));
+const env = loadEnv(process.env);
+const client = createS3Client(env);
 const storage = new S3FileStorage(client, BUCKET);
 
 beforeAll(async () => {
-  await ensureBucket(client, BUCKET);
+  await ensureBucket(client, BUCKET, env.S3_REGION);
 });
 
 describe('S3FileStorage', () => {

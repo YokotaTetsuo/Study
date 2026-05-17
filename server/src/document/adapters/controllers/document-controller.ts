@@ -7,6 +7,7 @@ import {
 } from '@pdf-review/shared';
 import type { DocumentResponse } from '@pdf-review/shared';
 import type { Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { getCookie } from 'hono/cookie';
 
 import type { SessionStore } from '../../../auth/application/session-store';
@@ -119,10 +120,37 @@ const getRouteDef = createRoute({
   },
 });
 
+const uploadBodySchema = z.object({
+  file: z.any().openapi({ type: 'string', format: 'binary' as const }),
+});
+
 const uploadRouteDef = createRoute({
   method: 'post',
   path: '/documents/{documentId}/versions',
-  request: { params: documentIdParam },
+  // multipart をパースする前にボディサイズ上限を強制する（メモリ保護）。
+  middleware: [
+    bodyLimit({
+      maxSize: MAX_UPLOAD_BYTES,
+      onError: (c) =>
+        c.json(
+          {
+            type: 'about:blank',
+            title: 'Payload Too Large',
+            status: 413,
+            detail: 'ファイルサイズが上限を超えています',
+          },
+          413,
+          PROBLEM_HEADERS,
+        ),
+    }),
+  ] as const,
+  request: {
+    params: documentIdParam,
+    body: {
+      content: { 'multipart/form-data': { schema: uploadBodySchema } },
+      description: `PDF（最大 ${String(MAX_UPLOAD_BYTES)} バイト）を file フィールドで送る`,
+    },
+  },
   responses: {
     ...errorResponses,
     201: { description: 'アップロード成功' as const, content: documentContent },
@@ -139,7 +167,11 @@ const downloadRouteDef = createRoute({
     ...errorResponses,
     200: {
       description: 'PDF バイト列' as const,
-      content: { 'application/pdf': { schema: z.string() } },
+      content: {
+        'application/pdf': {
+          schema: z.string().openapi({ type: 'string', format: 'binary' }),
+        },
+      },
     },
   },
 });
