@@ -18,24 +18,27 @@ export class DrizzleDocumentRepository implements DocumentRepository {
   }
 
   async findById(id: DocumentId): Promise<Document | null> {
-    // 集約を一貫スナップショットから再構築するため単一トランザクションで読む。
-    const snapshot = await this.#db.transaction(async (tx) => {
-      const docRows = await tx
-        .select()
-        .from(documents)
-        .where(eq(documents.id, id.value))
-        .limit(1);
-      const docRow = docRows[0];
-      if (docRow === undefined) {
-        return null;
-      }
-      const versionRows = await tx
-        .select()
-        .from(documentVersions)
-        .where(eq(documentVersions.documentId, id.value))
-        .orderBy(asc(documentVersions.versionNumber));
-      return { docRow, versionRows };
-    });
+    // 2 回の SELECT を一貫スナップショットで読むため REPEATABLE READ。
+    const snapshot = await this.#db.transaction(
+      async (tx) => {
+        const docRows = await tx
+          .select()
+          .from(documents)
+          .where(eq(documents.id, id.value))
+          .limit(1);
+        const docRow = docRows[0];
+        if (docRow === undefined) {
+          return null;
+        }
+        const versionRows = await tx
+          .select()
+          .from(documentVersions)
+          .where(eq(documentVersions.documentId, id.value))
+          .orderBy(asc(documentVersions.versionNumber));
+        return { docRow, versionRows };
+      },
+      { isolationLevel: 'repeatable read' },
+    );
     if (snapshot === null) {
       return null;
     }
@@ -58,49 +61,53 @@ export class DrizzleDocumentRepository implements DocumentRepository {
   async listByProject(
     projectId: DocumentProjectId,
   ): Promise<readonly Document[]> {
-    return this.#db.transaction(async (tx) => {
-      const docRows = await tx
-        .select()
-        .from(documents)
-        .where(eq(documents.projectId, projectId.value))
-        .orderBy(asc(documents.createdAt));
-      if (docRows.length === 0) {
-        return [];
-      }
-      // 版は全文書ぶんを 1 クエリで取得し N+1 を避ける。
-      const ids = docRows.map((d) => d.id);
-      const versionRows = await tx
-        .select()
-        .from(documentVersions)
-        .where(inArray(documentVersions.documentId, ids))
-        // 複合主キー (document_id, version_number) 順に揃え、
-        // グルーピングとソートをインデックスで賄う。
-        .orderBy(
-          asc(documentVersions.documentId),
-          asc(documentVersions.versionNumber),
+    // 文書と版の 2 回の SELECT を一貫スナップショットで読む。
+    return this.#db.transaction(
+      async (tx) => {
+        const docRows = await tx
+          .select()
+          .from(documents)
+          .where(eq(documents.projectId, projectId.value))
+          .orderBy(asc(documents.createdAt));
+        if (docRows.length === 0) {
+          return [];
+        }
+        // 版は全文書ぶんを 1 クエリで取得し N+1 を避ける。
+        const ids = docRows.map((d) => d.id);
+        const versionRows = await tx
+          .select()
+          .from(documentVersions)
+          .where(inArray(documentVersions.documentId, ids))
+          // 複合主キー (document_id, version_number) 順に揃え、
+          // グルーピングとソートをインデックスで賄う。
+          .orderBy(
+            asc(documentVersions.documentId),
+            asc(documentVersions.versionNumber),
+          );
+        const versionsByDoc = new Map<string, typeof versionRows>();
+        for (const v of versionRows) {
+          const list = versionsByDoc.get(v.documentId) ?? [];
+          list.push(v);
+          versionsByDoc.set(v.documentId, list);
+        }
+        return docRows.map((docRow) =>
+          Document.reconstruct({
+            id: new DocumentId(docRow.id),
+            projectId: new DocumentProjectId(docRow.projectId),
+            name: new DocumentName(docRow.name),
+            createdAt: dayjs(docRow.createdAt),
+            versionsData: (versionsByDoc.get(docRow.id) ?? []).map((v) => ({
+              versionNumber: v.versionNumber,
+              status: v.status,
+              storageKey: v.storageKey,
+              uploadedBy: v.uploadedBy,
+              createdAt: dayjs(v.createdAt),
+            })),
+          }),
         );
-      const versionsByDoc = new Map<string, typeof versionRows>();
-      for (const v of versionRows) {
-        const list = versionsByDoc.get(v.documentId) ?? [];
-        list.push(v);
-        versionsByDoc.set(v.documentId, list);
-      }
-      return docRows.map((docRow) =>
-        Document.reconstruct({
-          id: new DocumentId(docRow.id),
-          projectId: new DocumentProjectId(docRow.projectId),
-          name: new DocumentName(docRow.name),
-          createdAt: dayjs(docRow.createdAt),
-          versionsData: (versionsByDoc.get(docRow.id) ?? []).map((v) => ({
-            versionNumber: v.versionNumber,
-            status: v.status,
-            storageKey: v.storageKey,
-            uploadedBy: v.uploadedBy,
-            createdAt: dayjs(v.createdAt),
-          })),
-        }),
-      );
-    });
+      },
+      { isolationLevel: 'repeatable read' },
+    );
   }
 
   async save(document: Document): Promise<void> {
