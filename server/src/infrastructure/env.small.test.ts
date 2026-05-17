@@ -46,9 +46,10 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ NODE_ENV: 'staging' })).toThrow();
   });
 
-  it('should reject a non-URL CLIENT_ORIGIN', () => {
+  it('should normalize CLIENT_ORIGIN to an origin and reject non-URLs', () => {
     expect(
-      loadEnv({ CLIENT_ORIGIN: 'https://app.example.com' }).CLIENT_ORIGIN,
+      loadEnv({ CLIENT_ORIGIN: 'https://app.example.com/foo?x=1' })
+        .CLIENT_ORIGIN,
     ).toBe('https://app.example.com');
     expect(() => loadEnv({ CLIENT_ORIGIN: 'not-a-url' })).toThrow();
   });
