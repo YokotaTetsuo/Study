@@ -27,14 +27,14 @@ export class ListDocumentsUseCase {
   }
 
   async execute(query: ListDocumentsQuery): Promise<readonly DocumentResult[]> {
+    // 認可前に値オブジェクトで検証（不正 ID を 401 でなく検証エラーに）。
+    const projectId = new DocumentProjectId(query.projectId);
     if (
-      !(await this.#projectAccess.isMember(query.projectId, query.actingUserId))
+      !(await this.#projectAccess.isMember(projectId.value, query.actingUserId))
     ) {
       throw new NotAuthorizedError();
     }
-    const list = await this.#documents.listByProject(
-      new DocumentProjectId(query.projectId),
-    );
+    const list = await this.#documents.listByProject(projectId);
     return list.map(toDocumentResult);
   }
 }

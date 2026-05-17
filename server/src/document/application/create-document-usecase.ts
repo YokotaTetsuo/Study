@@ -39,9 +39,12 @@ export class CreateDocumentUseCase {
   }
 
   async execute(command: CreateDocumentCommand): Promise<DocumentResult> {
+    // 認可前に値オブジェクトで検証（不正 ID を 401 でなく検証エラーに）。
+    const projectId = new DocumentProjectId(command.projectId);
+    const name = new DocumentName(command.name);
     if (
       !(await this.#projectAccess.isMember(
-        command.projectId,
+        projectId.value,
         command.actingUserId,
       ))
     ) {
@@ -49,8 +52,8 @@ export class CreateDocumentUseCase {
     }
     const document = Document.create({
       id: new DocumentId(this.#idGenerator.generate()),
-      projectId: new DocumentProjectId(command.projectId),
-      name: new DocumentName(command.name),
+      projectId,
+      name,
       createdAt: this.#clock.now(),
     });
     await this.#documents.save(document);
