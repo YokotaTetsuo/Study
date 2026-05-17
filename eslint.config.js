@@ -16,8 +16,10 @@ export default tseslint.config(
       },
     },
     rules: {
-      // .claude/rules/no-as-type-assertion.md の機械強制:
-      // `as` 型アサーションを禁止し、`as const` のみ許可する。
+      // .claude/rules/no-as-type-assertion.md の機械強制。
+      // assertionStyle: 'never' は `as` / angle-bracket の型アサーションを全面禁止する。
+      // ただし `const` アサーション（`as const`）は consistent-type-assertions の
+      // 仕様上、style 設定に関わらず常に許可されるため、ルールに従い `as const` は使用可。
       '@typescript-eslint/consistent-type-assertions': [
         'error',
         { assertionStyle: 'never' },
@@ -31,9 +33,10 @@ export default tseslint.config(
     },
   },
   {
-    // 設定ファイル（JS）は型情報を使わずに lint する
+    // 設定ファイル（JS）は型情報を使わずに lint する。
+    // flat config として曖昧さのないよう、disableTypeChecked を files 付きで spread する。
     files: ['**/*.js'],
-    extends: [tseslint.configs.disableTypeChecked],
+    ...tseslint.configs.disableTypeChecked,
   },
   prettier,
 );

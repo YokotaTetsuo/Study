@@ -10,6 +10,9 @@ export const MAX_THOUGHTS = 48;
 /** これ以上離れた思考同士は連結しない（px）。 */
 export const LINK_RADIUS = 220;
 
+/** spawn 時に与える横方向ジッタの幅（px）。 */
+export const SPAWN_JITTER_X = 80;
+
 /**
  * 2 つの思考の連結強度 [0, 1]。
  * 共有する文字が多いほど、また近いほど強い。共有文字が無ければ 0。
@@ -54,12 +57,14 @@ export class World {
 
   /**
    * 言葉から思考を生み出す。空・空白のみは null。
+   * spawn 位置の横ジッタも注入済み RNG で決定的に与え、乱数源を sim 内に統一する。
    * 上限に達している場合は最も活力の低い思考を 1 つ追い出してから追加する。
    */
   spawn(text: string, x: number, y: number): Thought | null {
+    const jitterX = (this.rng() - 0.5) * SPAWN_JITTER_X;
     const thought = createThought(text, {
       id: `t${this.nextId}`,
-      x,
+      x: x + jitterX,
       y,
       rng: this.rng,
     });
