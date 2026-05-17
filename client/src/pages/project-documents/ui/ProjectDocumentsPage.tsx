@@ -8,21 +8,24 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Link } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { useCreateProject, useProjects } from '../../../features/project';
+import { useCreateDocument, useDocuments } from '../../../features/document';
 
-export function ProjectsPage(): ReactElement {
-  const projects = useProjects();
-  const create = useCreateProject();
+export function ProjectDocumentsPage(): ReactElement {
+  const { projectId } = useParams({
+    from: '/projects/$projectId/documents',
+  });
+  const documents = useDocuments(projectId);
+  const create = useCreateDocument();
   const [name, setName] = useState('');
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Typography variant="h5" gutterBottom>
-        プロジェクト
+        文書
       </Typography>
 
       <Box
@@ -31,7 +34,7 @@ export function ProjectsPage(): ReactElement {
         onSubmit={(e) => {
           e.preventDefault();
           create.mutate(
-            { name },
+            { projectId, name },
             {
               onSuccess: () => {
                 setName('');
@@ -42,8 +45,8 @@ export function ProjectsPage(): ReactElement {
       >
         <Stack direction="row" spacing={2}>
           <TextField
-            id="project-name"
-            label="新しいプロジェクト名"
+            id="document-name"
+            label="新しい文書名"
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -62,26 +65,19 @@ export function ProjectsPage(): ReactElement {
         )}
       </Box>
 
-      {projects.isPending && <Typography>読み込み中…</Typography>}
-      {projects.isError && (
-        <Alert severity="error">プロジェクトを取得できませんでした</Alert>
+      {documents.isPending && <Typography>読み込み中…</Typography>}
+      {documents.isError && (
+        <Alert severity="error">文書を取得できませんでした</Alert>
       )}
-      {projects.data !== undefined && (
+      {documents.data !== undefined && (
         <List>
-          {projects.data.map((p) => (
-            <li key={p.id}>
+          {documents.data.map((d) => (
+            <li key={d.id}>
               <Link
-                to="/projects/$projectId/documents"
-                params={{ projectId: p.id }}
+                to="/projects/$projectId/documents/$documentId"
+                params={{ projectId, documentId: d.id }}
               >
-                {p.name}（メンバー {p.members.length} 名）
-              </Link>
-              {' — '}
-              <Link
-                to="/projects/$projectId/settings"
-                params={{ projectId: p.id }}
-              >
-                設定
+                {d.name}（版 {d.versions.length}）
               </Link>
             </li>
           ))}
