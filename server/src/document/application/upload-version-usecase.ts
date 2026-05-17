@@ -52,6 +52,7 @@ export class UploadVersionUseCase {
     if (command.contentType.trim().toLowerCase() !== PDF_CONTENT_TYPE) {
       throw new UnsupportedContentTypeError(command.contentType);
     }
+    // 検証は正規化値で行うため、保存メタデータも正規形に統一する。
     const document = await this.#documents.findById(
       new DocumentId(command.documentId),
     );
@@ -72,7 +73,7 @@ export class UploadVersionUseCase {
     await this.#fileStorage.put(
       storageKey.value,
       command.data,
-      command.contentType,
+      PDF_CONTENT_TYPE,
     );
     document.addVersion({
       storageKey,
