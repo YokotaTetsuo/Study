@@ -9,5 +9,9 @@
     "declarationMap": false,
     "noEmit": true
   },
-  "include": ["eslint.config.ts", "vitest.config.ts"]
+  "include": [
+    "eslint.config.ts",
+    "vitest.config.ts",
+    "server/drizzle.config.ts"
+  ]
 }
