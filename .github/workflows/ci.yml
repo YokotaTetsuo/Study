@@ -17,8 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
+      # pnpm を先に用意してから setup-node を実行する。
+      # 順序を逆にすると setup-node の `cache: pnpm` 解決時に
+      # pnpm が PATH に無く失敗しうるため。packageManager から版を解決。
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
