@@ -43,7 +43,9 @@ export class AddMemberUseCase {
       throw new NotAuthorizedError();
     }
 
-    const userId = await this.#userDirectory.findUserIdByEmail(command.email);
+    // auth 側で email は trim/lowercase 正規化されて保存されるため揃える。
+    const email = command.email.trim().toLowerCase();
+    const userId = await this.#userDirectory.findUserIdByEmail(email);
     if (userId === null) {
       throw new MemberUserNotFoundError();
     }
