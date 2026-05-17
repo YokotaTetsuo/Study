@@ -89,6 +89,20 @@ describe('stepThought', () => {
     expect(t.vitality).toBe(0);
   });
 
+  it('極小ビューポートでも座標が負にならず画面内に収まる', () => {
+    const tiny: StepEnv = { width: 30, height: 20 };
+    let t = createThought('小', { id: 't0', x: 15, y: 10, rng: mulberry32(3) });
+    expect(t).not.toBeNull();
+    if (t === null) return;
+    for (let i = 0; i < 200; i++) {
+      t = stepThought(t, 0.5, tiny);
+      expect(t.x).toBeGreaterThanOrEqual(0);
+      expect(t.x).toBeLessThanOrEqual(tiny.width);
+      expect(t.y).toBeGreaterThanOrEqual(0);
+      expect(t.y).toBeLessThanOrEqual(tiny.height);
+    }
+  });
+
   it('座標は画面内（マージン込み）に保たれる', () => {
     let t = createThought('境', spawnOpts());
     expect(t).not.toBeNull();
