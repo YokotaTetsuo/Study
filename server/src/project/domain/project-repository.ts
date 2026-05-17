@@ -1,3 +1,4 @@
+import type { MemberUserId } from './member-user-id';
 import type { Project } from './project';
 import type { ProjectId } from './project-id';
 
@@ -6,5 +7,7 @@ import type { ProjectId } from './project-id';
  */
 export interface ProjectRepository {
   findById(id: ProjectId): Promise<Project | null>;
+  /** 指定ユーザーがメンバーであるプロジェクトを返す。 */
+  listByMember(userId: MemberUserId): Promise<readonly Project[]>;
   save(project: Project): Promise<void>;
 }

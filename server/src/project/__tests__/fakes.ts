@@ -4,6 +4,7 @@ import type { Dayjs } from 'dayjs';
 import type { Clock } from '../../shared-kernel/clock';
 import type { IdGenerator } from '../../shared-kernel/id-generator';
 import type { UserDirectory, UserProfile } from '../application/user-directory';
+import type { MemberUserId } from '../domain/member-user-id';
 import type { Project } from '../domain/project';
 import type { ProjectId } from '../domain/project-id';
 import type { ProjectRepository } from '../domain/project-repository';
@@ -25,6 +26,13 @@ export class InMemoryProjectRepository implements ProjectRepository {
 
   findById(id: ProjectId): Promise<Project | null> {
     return Promise.resolve(this.#byId.get(id.value) ?? null);
+  }
+
+  listByMember(userId: MemberUserId): Promise<readonly Project[]> {
+    const list = [...this.#byId.values()].filter((p) =>
+      p.members.some((m) => m.userId.equals(userId)),
+    );
+    return Promise.resolve(list);
   }
 
   save(project: Project): Promise<void> {

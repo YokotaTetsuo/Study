@@ -20,6 +20,7 @@ export {
   updateApprovalPolicyRequestSchema,
   projectMemberSchema,
   projectResponseSchema,
+  projectListResponseSchema,
 } from './project';
 export type {
   ProjectRole,
@@ -30,4 +31,5 @@ export type {
   UpdateApprovalPolicyRequest,
   ProjectMember,
   ProjectResponse,
+  ProjectListResponse,
 } from './project';

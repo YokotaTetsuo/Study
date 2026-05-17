@@ -37,6 +37,8 @@ const anonSessions: SessionStore = {
 function deps(sessions: SessionStore): Parameters<typeof createProjectApp>[0] {
   return {
     createProject: { execute: vi.fn().mockResolvedValue(RESULT) },
+    listProjects: { execute: vi.fn().mockResolvedValue([RESULT]) },
+    getProject: { execute: vi.fn().mockResolvedValue(RESULT) },
     addMember: { execute: vi.fn().mockResolvedValue(RESULT) },
     setMemberRole: { execute: vi.fn().mockResolvedValue(RESULT) },
     updateApprovalPolicy: { execute: vi.fn().mockResolvedValue(RESULT) },
@@ -59,6 +61,32 @@ function postJson(path: string, body: unknown, cookie?: string): Request {
 }
 
 describe('project controller', () => {
+  it('should list projects for an authenticated user', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+
+    const res = await app.request(
+      new Request('http://local/projects', {
+        headers: new Headers([['cookie', 'sid=abc']]),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it('should get a single project for a member', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}`, {
+        headers: new Headers([['cookie', 'sid=abc']]),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
   it('should return 401 when unauthenticated', async () => {
     const app = createProjectApp(deps(anonSessions));
 

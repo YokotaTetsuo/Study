@@ -12,6 +12,8 @@ import type { GetHealthUseCase } from '../../health/application/get-health-useca
 import { createProjectApp } from '../../project/adapters/controllers/project-controller';
 import type { AddMemberUseCase } from '../../project/application/add-member-usecase';
 import type { CreateProjectUseCase } from '../../project/application/create-project-usecase';
+import type { GetProjectUseCase } from '../../project/application/get-project-usecase';
+import type { ListProjectsUseCase } from '../../project/application/list-projects-usecase';
 import type { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import type { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
 import type { UserDirectory } from '../../project/application/user-directory';
@@ -29,6 +31,8 @@ interface AppDeps {
   };
   readonly project: {
     readonly createProject: CreateProjectUseCase;
+    readonly listProjects: ListProjectsUseCase;
+    readonly getProject: GetProjectUseCase;
     readonly addMember: AddMemberUseCase;
     readonly setMemberRole: SetMemberRoleUseCase;
     readonly updateApprovalPolicy: UpdateApprovalPolicyUseCase;

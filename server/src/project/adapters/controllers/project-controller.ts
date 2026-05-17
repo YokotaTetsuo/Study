@@ -14,6 +14,8 @@ import { getCookie } from 'hono/cookie';
 import type { SessionStore } from '../../../auth/application/session-store';
 import type { AddMemberUseCase } from '../../application/add-member-usecase';
 import type { CreateProjectUseCase } from '../../application/create-project-usecase';
+import type { GetProjectUseCase } from '../../application/get-project-usecase';
+import type { ListProjectsUseCase } from '../../application/list-projects-usecase';
 import type { ProjectResult } from '../../application/project-result';
 import type { SetMemberRoleUseCase } from '../../application/set-member-role-usecase';
 import type { UpdateApprovalPolicyUseCase } from '../../application/update-approval-policy-usecase';
@@ -36,6 +38,8 @@ const UNAUTHORIZED_BODY = {
 
 interface ProjectDeps {
   readonly createProject: Pick<CreateProjectUseCase, 'execute'>;
+  readonly listProjects: Pick<ListProjectsUseCase, 'execute'>;
+  readonly getProject: Pick<GetProjectUseCase, 'execute'>;
   readonly addMember: Pick<AddMemberUseCase, 'execute'>;
   readonly setMemberRole: Pick<SetMemberRoleUseCase, 'execute'>;
   readonly updateApprovalPolicy: Pick<UpdateApprovalPolicyUseCase, 'execute'>;
@@ -94,11 +98,33 @@ const errorResponses = {
 const projectContent = {
   'application/json': { schema: projectResponseSchema },
 };
+const projectListContent = {
+  'application/json': { schema: z.array(projectResponseSchema) },
+};
 const PROBLEM_HEADERS = {
   'content-type': 'application/problem+json',
 } as const;
 
 const projectIdParam = z.object({ projectId: z.string() });
+
+const listRouteDef = createRoute({
+  method: 'get',
+  path: '/projects',
+  responses: {
+    ...errorResponses,
+    200: { description: '一覧' as const, content: projectListContent },
+  },
+});
+
+const getRouteDef = createRoute({
+  method: 'get',
+  path: '/projects/{projectId}',
+  request: { params: projectIdParam },
+  responses: {
+    ...errorResponses,
+    200: { description: '取得成功' as const, content: projectContent },
+  },
+});
 
 const createRouteDef = createRoute({
   method: 'post',
@@ -192,6 +218,38 @@ export function createProjectApp(deps: ProjectDeps) {
       return undefined;
     },
   })
+    .openapi(listRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const results = await deps.listProjects.execute({ actingUserId });
+        const body = await Promise.all(
+          results.map((r) => toProjectResponse(r, deps.userDirectory)),
+        );
+        return c.json(body, 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(getRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const result = await deps.getProject.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
     .openapi(createRouteDef, async (c) => {
       try {
         const actingUserId = await resolveUserId(c);

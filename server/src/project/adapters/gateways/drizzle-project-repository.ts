@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
 
 import { ApprovalPolicy } from '../../domain/approval-policy';
+import type { MemberUserId } from '../../domain/member-user-id';
 import { Project } from '../../domain/project';
 import { ProjectId } from '../../domain/project-id';
 import { ProjectName } from '../../domain/project-name';
@@ -54,6 +55,21 @@ export class DrizzleProjectRepository implements ProjectRepository {
         approverRoles: row.approverRoles.map((r) => new ProjectRole(r)),
       }),
     });
+  }
+
+  async listByMember(userId: MemberUserId): Promise<readonly Project[]> {
+    const idRows = await this.#db
+      .select({ projectId: projectMembers.projectId })
+      .from(projectMembers)
+      .where(eq(projectMembers.userId, userId.value));
+    const projectList: Project[] = [];
+    for (const { projectId } of idRows) {
+      const project = await this.findById(new ProjectId(projectId));
+      if (project !== null) {
+        projectList.push(project);
+      }
+    }
+    return projectList;
   }
 
   async save(project: Project): Promise<void> {
