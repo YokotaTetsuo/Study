@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 // Vite: ワーカーを URL として解決し GlobalWorkerOptions に設定する。
 // eslint-disable-next-line import-x/default -- Vite の ?url は文字列を default export する
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -57,26 +57,35 @@ export function PdfViewer({ src }: PdfViewerProps): ReactElement {
       return;
     }
     const token = { cancelled: false };
+    let renderTask: RenderTask | null = null;
     void (async (): Promise<void> => {
-      const pdfPage = await doc.getPage(page);
-      if (token.cancelled) {
-        return;
+      try {
+        const pdfPage = await doc.getPage(page);
+        if (token.cancelled) {
+          return;
+        }
+        const canvas = canvasRef.current;
+        if (canvas === null) {
+          return;
+        }
+        const context = canvas.getContext('2d');
+        if (context === null) {
+          return;
+        }
+        const viewport = pdfPage.getViewport({ scale: 1.3 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        renderTask = pdfPage.render({ canvasContext: context, viewport });
+        await renderTask.promise;
+      } catch {
+        // ページ切替/アンマウントでの cancel 例外は無視する。
       }
-      const canvas = canvasRef.current;
-      if (canvas === null) {
-        return;
-      }
-      const context = canvas.getContext('2d');
-      if (context === null) {
-        return;
-      }
-      const viewport = pdfPage.getViewport({ scale: 1.3 });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await pdfPage.render({ canvasContext: context, viewport }).promise;
     })();
     return (): void => {
       token.cancelled = true;
+      if (renderTask !== null) {
+        renderTask.cancel();
+      }
     };
   }, [doc, page]);
 
