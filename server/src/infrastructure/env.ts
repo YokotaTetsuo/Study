@@ -17,7 +17,13 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
-  CLIENT_ORIGIN: z.string().url().default('http://localhost:5173'),
+  // ブラウザ Origin と一致させるため URL を origin へ正規化
+  // （path/末尾スラッシュ/クエリを除去）。
+  CLIENT_ORIGIN: z
+    .string()
+    .url()
+    .transform((v) => new URL(v).origin)
+    .default('http://localhost:5173'),
 });
 /* eslint-enable @typescript-eslint/naming-convention */
 
