@@ -30,6 +30,10 @@ describe('S3FileStorage', () => {
   });
 
   it('should return null for a missing key', async () => {
-    expect(await storage.get('documents/does-not-exist.pdf')).toBeNull();
+    // 永続バケットでの再実行でも確実に不在となる一意キーを使う。
+    const key = `documents/missing/${String(Date.now())}-${String(
+      Math.random(),
+    )}.pdf`;
+    expect(await storage.get(key)).toBeNull();
   });
 });
