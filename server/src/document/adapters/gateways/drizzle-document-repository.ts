@@ -73,7 +73,12 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         .select()
         .from(documentVersions)
         .where(inArray(documentVersions.documentId, ids))
-        .orderBy(asc(documentVersions.versionNumber));
+        // 複合主キー (document_id, version_number) 順に揃え、
+        // グルーピングとソートをインデックスで賄う。
+        .orderBy(
+          asc(documentVersions.documentId),
+          asc(documentVersions.versionNumber),
+        );
       const versionsByDoc = new Map<string, typeof versionRows>();
       for (const v of versionRows) {
         const list = versionsByDoc.get(v.documentId) ?? [];
