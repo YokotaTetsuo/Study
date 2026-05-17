@@ -50,9 +50,12 @@ export class World {
 
   constructor(private readonly rng: Rng) {}
 
-  /** 現在の思考一覧（読み取り専用ビュー）。 */
+  /**
+   * 現在の思考一覧。実行時にも外部から破壊的変更されないようコピーを返す
+   * （`readonly` はコンパイル時のみの保証のため）。要素数は最大 MAX_THOUGHTS。
+   */
   get thoughts(): readonly Thought[] {
-    return this.items;
+    return this.items.slice();
   }
 
   /**

@@ -4,7 +4,8 @@ export default defineConfig({
   base: './',
   build: {
     target: 'es2022',
-    sourcemap: true,
+    // 本番ビルドではソース露出とサイズ増を避けるため sourcemap を無効化。
+    sourcemap: false,
   },
   test: {
     globals: true,
