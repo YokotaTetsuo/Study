@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "concurrently --names server,client -c blue,green \"pnpm --filter @pdf-review/server dev\" \"pnpm --filter @pdf-review/client dev\"",
     "typecheck": "tsc -b",
-    "build": "pnpm --filter @pdf-review/server build && pnpm --filter @pdf-review/client build",
+    "build": "tsc -b && pnpm --filter @pdf-review/client build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
