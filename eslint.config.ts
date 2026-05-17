@@ -33,7 +33,11 @@ export default defineConfig(
         // 含まれないため、strict 設定を持つ tsconfig.eslint.json を
         // default project として割り当てて型情報付き lint の対象に含める。
         projectService: {
-          allowDefaultProject: ['eslint.config.ts', 'vitest.config.ts'],
+          allowDefaultProject: [
+            'eslint.config.ts',
+            'vitest.config.ts',
+            'server/drizzle.config.ts',
+          ],
           defaultProject: 'tsconfig.eslint.json',
         },
         tsconfigRootDir: import.meta.dirname,

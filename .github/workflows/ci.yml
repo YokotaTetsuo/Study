@@ -14,6 +14,26 @@ jobs:
   quality:
     name: typecheck / lint / depcruise / format / test / build
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: pdfreview
+      DB_PASSWORD: pdfreview
+      DB_NAME: pdfreview
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pdfreview
+          POSTGRES_PASSWORD: pdfreview
+          POSTGRES_DB: pdfreview
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pdfreview"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +61,9 @@ jobs:
 
       - name: Format check
         run: pnpm format:check
+
+      - name: DB migrate
+        run: pnpm --filter @pdf-review/server db:migrate
 
       - name: Test
         run: pnpm test

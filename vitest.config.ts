@@ -24,6 +24,11 @@ export default defineConfig({
           include: [
             '{client,server,shared,infra}/src/**/*.medium.test.{ts,tsx}',
           ],
+          setupFiles: ['./server/src/infrastructure/config/test-env-setup.ts'],
+          // 共有 DB を truncate+seed で隔離するため Medium は単一フォーク直列実行。
+          fileParallelism: false,
+          pool: 'forks',
+          poolOptions: { forks: { singleFork: true } },
         },
       },
     ],
