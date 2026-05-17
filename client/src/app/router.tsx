@@ -5,8 +5,10 @@ import {
   Outlet,
 } from '@tanstack/react-router';
 
+import { DocumentDetailPage } from '../pages/document-detail';
 import { HomePage } from '../pages/home';
 import { LoginPage } from '../pages/login';
+import { ProjectDocumentsPage } from '../pages/project-documents';
 import { ProjectSettingsPage } from '../pages/project-settings';
 import { ProjectsPage } from '../pages/projects';
 import { RegisterPage } from '../pages/register';
@@ -43,12 +45,26 @@ const projectSettingsRoute = createRoute({
   component: ProjectSettingsPage,
 });
 
+const projectDocumentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/documents',
+  component: ProjectDocumentsPage,
+});
+
+const documentDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/documents/$documentId',
+  component: DocumentDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   registerRoute,
   projectsRoute,
   projectSettingsRoute,
+  projectDocumentsRoute,
+  documentDetailRoute,
 ]);
 
 export const router = createRouter({ routeTree });
