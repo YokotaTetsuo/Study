@@ -77,8 +77,15 @@ export function PdfViewer({ src }: PdfViewerProps): ReactElement {
         canvas.height = viewport.height;
         renderTask = pdfPage.render({ canvasContext: context, viewport });
         await renderTask.promise;
-      } catch {
-        // ページ切替/アンマウントでの cancel 例外は無視する。
+      } catch (e) {
+        // ページ切替/アンマウントの cancel 例外のみ無視。
+        // それ以外（破損 PDF / CORS 等）はユーザーに失敗を伝える。
+        const cancelled =
+          token.cancelled ||
+          (e instanceof Error && e.name === 'RenderingCancelledException');
+        if (!cancelled) {
+          setError(true);
+        }
       }
     })();
     return (): void => {

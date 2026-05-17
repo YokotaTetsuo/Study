@@ -99,7 +99,8 @@ export function DocumentDetailPage(): ReactElement {
         </Stack>
         {upload.isError && (
           <Alert severity="error" sx={{ mt: 1 }}>
-            アップロードに失敗しました（PDF のみ）
+            アップロードに失敗しました。対応形式は PDF
+            のみです。ファイルサイズ・権限・通信状況もご確認ください。
           </Alert>
         )}
       </Box>
