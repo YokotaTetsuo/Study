@@ -29,12 +29,17 @@ importers:
       typescript-eslint:
         specifier: ^8.21.0
         version: 8.59.3(eslint@9.39.4)(typescript@5.9.3)
-      vite:
-        specifier: ^6.0.7
-        version: 6.4.2
       vitest:
         specifier: ^3.0.5
         version: 3.2.4
+
+  client: {}
+
+  infra: {}
+
+  server: {}
+
+  shared: {}
 
 packages:
 

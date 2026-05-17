@@ -1,23 +1,22 @@
 {
-  "name": "thought-garden",
-  "version": "0.1.0",
+  "name": "pdf-review",
+  "version": "0.0.0",
   "private": true,
-  "description": "「思考の席」— 打った言葉が生き物になって漂い、放置で枯れ、水やりで蘇る考えの生態系",
+  "description": "PDF をバージョン管理し、版にコメント・承認フローを通すマルチユーザー Web アプリ",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "dev": "echo 'dev は Phase 0 PR 0.4 で server+client を配線します' && exit 0",
+    "typecheck": "tsc -b",
+    "build": "tsc -b",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
   "devDependencies": {
@@ -28,7 +27,6 @@
     "prettier": "^3.4.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.21.0",
-    "vite": "^6.0.7",
     "vitest": "^3.0.5"
   }
 }

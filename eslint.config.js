@@ -7,7 +7,12 @@ export default tseslint.config(
     // docs/reference/ は panoptiplan からの参照用設定サンプル（原文ママ保持）。
     // 現行プロジェクトの tsconfig 配下ではないため lint/型検査の対象外とする。
     // docs/ 配下に将来実行対象スクリプトを置いた場合は lint を効かせる。
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'docs/reference/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      'docs/reference/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
