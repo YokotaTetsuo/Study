@@ -75,6 +75,47 @@
         border-color: rgba(150, 200, 255, 0.5);
         background: rgba(24, 32, 50, 0.7);
       }
+      #about {
+        position: fixed;
+        bottom: 18px;
+        left: 18px;
+        max-width: min(360px, 78vw);
+        color: rgba(180, 200, 230, 0.55);
+        font-size: 12px;
+        line-height: 1.7;
+        letter-spacing: 0.04em;
+      }
+      #about summary {
+        cursor: pointer;
+        list-style: none;
+        color: rgba(180, 200, 230, 0.5);
+        padding: 4px 0;
+        transition: color 0.3s ease;
+      }
+      #about summary::-webkit-details-marker {
+        display: none;
+      }
+      #about summary::before {
+        content: '＋ ';
+      }
+      #about[open] summary::before {
+        content: '− ';
+      }
+      #about summary:hover,
+      #about[open] summary {
+        color: rgba(190, 215, 245, 0.85);
+      }
+      #about .body {
+        margin-top: 6px;
+        padding: 12px 16px;
+        background: rgba(20, 26, 40, 0.5);
+        border: 1px solid rgba(140, 170, 210, 0.18);
+        border-radius: 12px;
+        backdrop-filter: blur(6px);
+      }
+      #about .body p + p {
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -98,6 +139,20 @@
         placeholder="いま考えていることを置いてみる…"
       />
     </div>
+    <details id="about">
+      <summary>これは何？</summary>
+      <div class="body">
+        <p>
+          頭に浮かんだ言葉を「生き物」として育てる体験です。実用ツールではなく、考えたことの生態系を眺めて触る作品。
+        </p>
+        <p>
+          言葉を打つと画面を漂う生き物になり、放っておくと枯れ、クリックで水やりすると息を吹き返す。近い思考どうしは線でつながります。
+        </p>
+        <p>
+          リロードするとすべて消えます。これは仕様で、思考は記録せずその場で生まれて消えていく、というのがこの作品の核です。
+        </p>
+      </div>
+    </details>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
