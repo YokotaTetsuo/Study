@@ -70,4 +70,33 @@ describe('DrizzleProjectRepository', () => {
       await repo.findById(new ProjectId('01HQ8ZK9PRSTVWXYZ23456789C')),
     ).toBeNull();
   });
+
+  it('should list only the member’s projects with reconstructed members', async () => {
+    const PROJECT_ID_2 = '01HQ8ZK9PRSTVWXYZ23456789D';
+    // project1: OWNER 所有 + MEMBER を reviewer 追加
+    const project1 = aProject();
+    project1.addMember({
+      userId: new MemberUserId(MEMBER_ID),
+      role: new ProjectRole('reviewer'),
+    });
+    await repo.save(project1);
+    // project2: MEMBER のみ所有
+    await repo.save(
+      Project.create({
+        id: new ProjectId(PROJECT_ID_2),
+        name: new ProjectName('Other'),
+        ownerUserId: new MemberUserId(MEMBER_ID),
+        createdAt: FIXED_NOW,
+      }),
+    );
+
+    const ownerProjects = await repo.listByMember(new MemberUserId(OWNER_ID));
+    const memberProjects = await repo.listByMember(new MemberUserId(MEMBER_ID));
+
+    expect(ownerProjects.map((p) => p.id.value)).toEqual([PROJECT_ID_1]);
+    expect(ownerProjects[0]?.members).toHaveLength(2);
+    expect(new Set(memberProjects.map((p) => p.id.value))).toEqual(
+      new Set([PROJECT_ID_1, PROJECT_ID_2]),
+    );
+  });
 });
