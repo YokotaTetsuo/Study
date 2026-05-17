@@ -20,6 +20,11 @@ export interface Thought {
   readonly hue: number;
   /** ゆらぎ位相の種。 */
   readonly seed: number;
+  /**
+   * text のユニーク文字集合（生成時に 1 度だけ計算）。
+   * linkStrength が毎フレーム O(n^2) で呼ばれても Set を再生成しないための前計算。
+   */
+  readonly chars: ReadonlySet<string>;
 }
 
 export interface SpawnOptions {
@@ -76,6 +81,7 @@ export function createThought(
     ageSec: 0,
     hue: hueFromText(text),
     seed: opts.rng() * Math.PI * 2,
+    chars: new Set(text),
   };
 }
 
