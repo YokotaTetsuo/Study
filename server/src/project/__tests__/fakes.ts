@@ -42,7 +42,11 @@ export class InMemoryUserDirectory implements UserDirectory {
   }
 
   findUserIdByEmail(email: string): Promise<string | null> {
-    const found = this.#profiles.find((p) => p.email === email);
+    // 本番（DrizzleUserDirectory）と同じく trim/lowercase 正規化で比較。
+    const normalized = email.trim().toLowerCase();
+    const found = this.#profiles.find(
+      (p) => p.email.trim().toLowerCase() === normalized,
+    );
     return Promise.resolve(found?.userId ?? null);
   }
 
