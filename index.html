@@ -79,8 +79,8 @@
         position: fixed;
         /* 下部の #bar と構造的に競合しないよう上部に配置し、
            ノッチ/丸角の端末でも隠れないよう safe area を加味する。 */
-        top: calc(14px + env(safe-area-inset-top));
-        left: calc(18px + env(safe-area-inset-left));
+        top: calc(14px + env(safe-area-inset-top, 0px));
+        left: calc(18px + env(safe-area-inset-left, 0px));
         max-width: min(360px, 78vw);
         color: rgba(180, 200, 230, 0.55);
         font-size: 12px;
