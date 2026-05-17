@@ -47,13 +47,15 @@ interface ProjectDeps {
   readonly userDirectory: UserDirectory;
 }
 
-async function toProjectResponse(
+type ProfileMap = ReadonlyMap<
+  string,
+  { readonly email: string; readonly displayName: string }
+>;
+
+function serializeProject(
   result: ProjectResult,
-  directory: UserDirectory,
-): Promise<ProjectResponse> {
-  const profiles = await directory.findProfiles(
-    result.members.map((m) => m.userId),
-  );
+  profiles: ProfileMap,
+): ProjectResponse {
   const members = result.members.map((m) => {
     const profile = profiles.get(m.userId);
     if (profile === undefined) {
@@ -80,6 +82,27 @@ async function toProjectResponse(
     throw new ResponseSerializationError();
   }
   return parsed.data;
+}
+
+async function toProjectResponse(
+  result: ProjectResult,
+  directory: UserDirectory,
+): Promise<ProjectResponse> {
+  const profiles = await directory.findProfiles(
+    result.members.map((m) => m.userId),
+  );
+  return serializeProject(result, profiles);
+}
+
+async function toProjectResponses(
+  results: readonly ProjectResult[],
+  directory: UserDirectory,
+): Promise<ProjectResponse[]> {
+  const ids = [
+    ...new Set(results.flatMap((r) => r.members.map((m) => m.userId))),
+  ];
+  const profiles = await directory.findProfiles(ids);
+  return results.map((r) => serializeProject(r, profiles));
 }
 
 /* eslint-disable @typescript-eslint/naming-convention --
@@ -225,9 +248,7 @@ export function createProjectApp(deps: ProjectDeps) {
           return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
         }
         const results = await deps.listProjects.execute({ actingUserId });
-        const body = await Promise.all(
-          results.map((r) => toProjectResponse(r, deps.userDirectory)),
-        );
+        const body = await toProjectResponses(results, deps.userDirectory);
         return c.json(body, 200);
       } catch (e) {
         const p = toProblem(e);
