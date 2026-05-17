@@ -25,20 +25,20 @@
 
 ## 1. 技術判断（panoptiplan 準拠で確定）
 
-| # | 項目 | 採用 | 備考 |
-|---|------|------|------|
-| 1 | API HTTP | **Hono**（`@hono/zod-openapi` / `OpenAPIHono`） | 型推論保護は `server-hono-routes.md` 厳守 |
-| 2 | 型共有 | **Hono RPC `AppType`** + `shared` の Zod スキーマ | client→server は **type-only import のみ**許可 |
-| 3 | DB | **PostgreSQL 17** + **Drizzle ORM** | マイグレーションは `pnpm --filter server db:generate/migrate` |
-| 4 | ファイル保存 | **S3 互換**（ローカル: RustFS / 本番: S3）。`FileStorage` ポート抽象 | ポートは shared-kernel |
-| 5 | 認証 | email+パスワード(argon2) + httpOnly セッション Cookie | ※ panoptiplan に認証は無いため本プロジェクト独自。Clean Arch に従い `auth/` モジュールとして実装 |
-| 6 | DI | **DI コンテナ**（`server/src/infrastructure/composition/container.ts`） | エントリポイントもここ |
-| 7 | フロント | **React 19 SPA**（Vite + **TanStack Router** + **TanStack React Query** + **MUI v9**） | FSD は `client-fsd.md` |
-| 8 | ID | **ULID** | ドメインは値オブジェクト化（`ProjectId` 等） |
-| 9 | エラー応答 | **RFC 7807 Problem Details**（`application/problem+json`） | — |
-| 10 | バリデーション | API 境界で Zod、ドメインは値オブジェクトのコンストラクタ | — |
-| 11 | コミット/フック | Conventional Commits（commitlint）+ husky pre-commit（ESLint --fix / Prettier / commitlint） | — |
-| 12 | テスト | Vitest `projects` で **Small / Medium** 物理分離 | 詳細は `testing.md` |
+| #   | 項目            | 採用                                                                                         | 備考                                                                                             |
+| --- | --------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1   | API HTTP        | **Hono**（`@hono/zod-openapi` / `OpenAPIHono`）                                              | 型推論保護は `server-hono-routes.md` 厳守                                                        |
+| 2   | 型共有          | **Hono RPC `AppType`** + `shared` の Zod スキーマ                                            | client→server は **type-only import のみ**許可                                                   |
+| 3   | DB              | **PostgreSQL 17** + **Drizzle ORM**                                                          | マイグレーションは `pnpm --filter server db:generate/migrate`                                    |
+| 4   | ファイル保存    | **S3 互換**（ローカル: RustFS / 本番: S3）。`FileStorage` ポート抽象                         | ポートは shared-kernel                                                                           |
+| 5   | 認証            | email+パスワード(argon2) + httpOnly セッション Cookie                                        | ※ panoptiplan に認証は無いため本プロジェクト独自。Clean Arch に従い `auth/` モジュールとして実装 |
+| 6   | DI              | **DI コンテナ**（`server/src/infrastructure/composition/container.ts`）                      | エントリポイントもここ                                                                           |
+| 7   | フロント        | **React 19 SPA**（Vite + **TanStack Router** + **TanStack React Query** + **MUI v9**）       | FSD は `client-fsd.md`                                                                           |
+| 8   | ID              | **ULID**                                                                                     | ドメインは値オブジェクト化（`ProjectId` 等）                                                     |
+| 9   | エラー応答      | **RFC 7807 Problem Details**（`application/problem+json`）                                   | —                                                                                                |
+| 10  | バリデーション  | API 境界で Zod、ドメインは値オブジェクトのコンストラクタ                                     | —                                                                                                |
+| 11  | コミット/フック | Conventional Commits（commitlint）+ husky pre-commit（ESLint --fix / Prettier / commitlint） | —                                                                                                |
+| 12  | テスト          | Vitest `projects` で **Small / Medium** 物理分離                                             | 詳細は `testing.md`                                                                              |
 
 ## 2. リポ構成（モノレポ / pnpm workspaces、panoptiplan 準拠）
 
@@ -107,17 +107,17 @@ pdf-review/
 集約は **集約ルート経由のみ**でアクセス。内部エンティティは集約ルートに同居しクラス非 export、
 読み取り専用ビュー interface を export（`server-aggregate-internal-entity.md`）。
 
-| 集約/エンティティ | 役割 | 主な不変条件 |
-|---|---|---|
-| **User**（auth） | 認証主体 | email 一意 |
-| **Project** | 文書群の入れ物。Membership/Role/ApprovalPolicy 保持 | Owner 最低 1 名 |
-| **Membership** | Project 参加 + 付与ロール | 同一ユーザー重複参加不可 |
-| **Role**（設定可変） | Owner/Submitter/Reviewer/Approver … 定義変更可 | — |
-| **ApprovalPolicy**（設定可変） | 必要承認数・承認可能ロール等 | 必要承認数 ≥ 1 |
-| **Document** | バージョン管理対象。正式版ポインタ | 正式版は Approved 済みの版のみ |
-| **DocumentVersion** | 版番号・保存キー・状態・提出者 | 状態遷移は下記マシン |
-| **ReviewRequest** | 提出版の承認集約 | ポリシー充足判定を内包 |
-| **Comment**（Version の内部エンティティ） | 版単位スレッド（MVP）。後段でページ/座標ピン | 著者のみ削除可・集約ルート経由 |
+| 集約/エンティティ                         | 役割                                                | 主な不変条件                   |
+| ----------------------------------------- | --------------------------------------------------- | ------------------------------ |
+| **User**（auth）                          | 認証主体                                            | email 一意                     |
+| **Project**                               | 文書群の入れ物。Membership/Role/ApprovalPolicy 保持 | Owner 最低 1 名                |
+| **Membership**                            | Project 参加 + 付与ロール                           | 同一ユーザー重複参加不可       |
+| **Role**（設定可変）                      | Owner/Submitter/Reviewer/Approver … 定義変更可      | —                              |
+| **ApprovalPolicy**（設定可変）            | 必要承認数・承認可能ロール等                        | 必要承認数 ≥ 1                 |
+| **Document**                              | バージョン管理対象。正式版ポインタ                  | 正式版は Approved 済みの版のみ |
+| **DocumentVersion**                       | 版番号・保存キー・状態・提出者                      | 状態遷移は下記マシン           |
+| **ReviewRequest**                         | 提出版の承認集約                                    | ポリシー充足判定を内包         |
+| **Comment**（Version の内部エンティティ） | 版単位スレッド（MVP）。後段でページ/座標ピン        | 著者のみ削除可・集約ルート経由 |
 
 ### DocumentVersion 状態機械
 
@@ -136,15 +136,15 @@ Draft ──submit──► UnderReview ──(policy satisfied)──► Approv
 PR + Copilot レビュー + 品質ゲートを毎回通す。client 変更を含む PR は `fsd-review` 実行。
 詳細タスクは [TASKS.md](./TASKS.md)。
 
-| Phase | 目的 | 完了時に確認できること |
-|---|---|---|
-| 0 | 基盤 | `pnpm dev` で server+client 起動、画面に「API: ok」 |
-| 1 | 認証/アカウント | 登録→ログイン→「ログイン中: X」→ログアウト |
-| 2 | プロジェクト/メンバー/ロール | プロジェクト作成→メンバー追加→設定でロール/必要承認数変更 |
-| 3 | 文書/版アップロード(不透明)+ビューア | PDF v1/v2 アップロード→版切替→ブラウザ閲覧 |
-| 4 | 提出/承認ワークフロー | v2 提出→承認→正式版化／差戻し経路 |
-| 5 | コメント(版スレッド) | 版にコメント→複数ユーザーでスレッド表示 |
-| 6 | 仕上げ | 依存ルール CI 厳格 fail 化・認可網羅・seed・(任意)E2E |
+| Phase | 目的                                 | 完了時に確認できること                                    |
+| ----- | ------------------------------------ | --------------------------------------------------------- |
+| 0     | 基盤                                 | `pnpm dev` で server+client 起動、画面に「API: ok」       |
+| 1     | 認証/アカウント                      | 登録→ログイン→「ログイン中: X」→ログアウト                |
+| 2     | プロジェクト/メンバー/ロール         | プロジェクト作成→メンバー追加→設定でロール/必要承認数変更 |
+| 3     | 文書/版アップロード(不透明)+ビューア | PDF v1/v2 アップロード→版切替→ブラウザ閲覧                |
+| 4     | 提出/承認ワークフロー                | v2 提出→承認→正式版化／差戻し経路                         |
+| 5     | コメント(版スレッド)                 | 版にコメント→複数ユーザーでスレッド表示                   |
+| 6     | 仕上げ                               | 依存ルール CI 厳格 fail 化・認可網羅・seed・(任意)E2E     |
 
 ### Post-MVP（本計画外・別途計画）
 
