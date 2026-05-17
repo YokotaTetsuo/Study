@@ -77,8 +77,10 @@
       }
       #about {
         position: fixed;
-        bottom: 18px;
-        left: 18px;
+        /* 下部の #bar と構造的に競合しないよう上部に配置し、
+           ノッチ/丸角の端末でも隠れないよう safe area を加味する。 */
+        top: calc(14px + env(safe-area-inset-top));
+        left: calc(18px + env(safe-area-inset-left));
         max-width: min(360px, 78vw);
         color: rgba(180, 200, 230, 0.55);
         font-size: 12px;
@@ -112,6 +114,9 @@
         border: 1px solid rgba(140, 170, 210, 0.18);
         border-radius: 12px;
         backdrop-filter: blur(6px);
+        /* 極端に低いビューポートでもパネルが画面外へ溢れない。 */
+        max-height: 60vh;
+        overflow-y: auto;
       }
       #about .body p + p {
         margin-top: 8px;
