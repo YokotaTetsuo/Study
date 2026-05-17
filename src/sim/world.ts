@@ -21,18 +21,17 @@ export const SPAWN_JITTER_X = 80;
 export function linkStrength(a: Thought, b: Thought): number {
   if (a.id === b.id) return 0;
 
-  const charsA = new Set(a.text);
+  // 前計算済みの文字集合を使い、呼び出しごとの Set 生成を避ける
+  // （毎フレーム O(n^2) で呼ばれるため割り当てを抑える）。
+  const charsA = a.chars;
+  const charsB = b.chars;
   let shared = 0;
-  const seen = new Set<string>();
-  for (const ch of b.text) {
-    if (charsA.has(ch) && !seen.has(ch)) {
-      seen.add(ch);
-      shared++;
-    }
+  for (const ch of charsB) {
+    if (charsA.has(ch)) shared++;
   }
   if (shared === 0) return 0;
 
-  const uniqueUnion = new Set([...a.text, ...b.text]).size;
+  const uniqueUnion = charsA.size + charsB.size - shared;
   const overlap = uniqueUnion === 0 ? 0 : shared / uniqueUnion;
 
   const dx = a.x - b.x;

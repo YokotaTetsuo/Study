@@ -82,6 +82,7 @@ describe('linkStrength', () => {
       ageSec: 0,
       hue: 0,
       seed: 0,
+      chars: new Set(text),
     };
   }
 
