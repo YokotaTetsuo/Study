@@ -114,7 +114,10 @@ async function run(dbClient: DbClient): Promise<void> {
   });
 
   // ユーザー: 既存ならその id、無ければ登録（再実行で重複登録しない）。
+  // 既存アカウントのパスワードは変更しない（このスクリプトが新規作成
+  // したものだけが共通パスワードを持つ）。
   const userIdByEmail = new Map<string, string>();
+  const createdEmails: string[] = [];
   for (const u of SEED_USERS) {
     const rows = await dbClient.sql<{ id: string }[]>`
       select id from users where email = ${u.email} limit 1
@@ -130,16 +133,21 @@ async function run(dbClient: DbClient): Promise<void> {
       displayName: u.displayName,
     });
     userIdByEmail.set(u.email, created.id);
+    createdEmails.push(u.email);
   }
   const ownerId = userIdByEmail.get('owner@example.com');
   if (ownerId === undefined) {
     throw new Error('owner user could not be resolved');
   }
 
-  // プロジェクト: owner の参加プロジェクトから名前一致を探す。無ければ作成。
+  // プロジェクト: 名前一致かつ ownerId が owner ロールのものだけ再利用
+  // する（owner でない同名プロジェクトを掴むと以降の owner 専用操作が
+  // 失敗するため）。無ければ作成。
   const ownerProjects = await projects.listByMember(new MemberUserId(ownerId));
   const existingProject = ownerProjects.find(
-    (p) => p.name.value === PROJECT_NAME,
+    (p) =>
+      p.name.value === PROJECT_NAME &&
+      p.members.some((m) => m.userId.value === ownerId && m.role.isOwner()),
   );
   const projectId =
     existingProject?.id.value ??
@@ -224,9 +232,19 @@ async function run(dbClient: DbClient): Promise<void> {
   }
 
   log('シード完了:');
-  log('  ログイン: owner@example.com / approver@example.com /');
-  log('            reviewer@example.com / submitter@example.com');
-  log(`  パスワード（共通）: ${PASSWORD}`);
+  log('  対象アカウント: owner@example.com / approver@example.com /');
+  log('                  reviewer@example.com / submitter@example.com');
+  if (createdEmails.length > 0) {
+    log(
+      `  今回新規作成（パスワード ${PASSWORD}）: ${createdEmails.join(', ')}`,
+    );
+  }
+  const reused = SEED_USERS.map((u) => u.email).filter(
+    (e) => !createdEmails.includes(e),
+  );
+  if (reused.length > 0) {
+    log(`  既存のため再利用（パスワードは従来のまま）: ${reused.join(', ')}`);
+  }
   log(`  プロジェクト「${PROJECT_NAME}」/ 文書「${DOCUMENT_NAME}」v1`);
 }
 
