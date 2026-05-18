@@ -73,8 +73,9 @@ describe('DrizzleTransactor', () => {
     await transactor.run(async ({ documents, reviewRequests }) => {
       const doc = aDocumentWithDraft();
       doc.submitVersion(1);
-      await reviewRequests.save(aReviewRequest());
+      // FK 充足のため親文書を先に保存してから依頼を保存する。
       await documents.save(doc);
+      await reviewRequests.save(aReviewRequest());
     });
 
     const doc = await docRepo.findById(new DocumentId(DOC_ID));
@@ -86,8 +87,8 @@ describe('DrizzleTransactor', () => {
       transactor.run(async ({ documents, reviewRequests }) => {
         const doc = aDocumentWithDraft();
         doc.submitVersion(1);
-        await reviewRequests.save(aReviewRequest());
         await documents.save(doc);
+        await reviewRequests.save(aReviewRequest());
         throw new Error('boom');
       }),
     ).rejects.toThrow('boom');
