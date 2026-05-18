@@ -10,7 +10,7 @@ import { VersionStatus } from './version-status';
 
 class DocumentVersion {
   readonly #versionNumber: number;
-  readonly #status: VersionStatus;
+  #status: VersionStatus;
   readonly #storageKey: StorageKey;
   readonly #uploadedBy: UploaderId;
   readonly #createdAt: Dayjs;
@@ -73,6 +73,28 @@ class DocumentVersion {
   get createdAt(): Dayjs {
     return this.#createdAt;
   }
+
+  // 状態遷移は VersionStatus 状態機械に委譲し、結果を自身へ反映する。
+  // 不正遷移は VersionStatus が InvalidVersionTransitionError を送出する。
+  submit(): void {
+    this.#status = this.#status.submit();
+  }
+
+  approve(): void {
+    this.#status = this.#status.approve();
+  }
+
+  requestChanges(): void {
+    this.#status = this.#status.requestChanges();
+  }
+
+  reject(): void {
+    this.#status = this.#status.reject();
+  }
+
+  publish(): void {
+    this.#status = this.#status.publish();
+  }
 }
 
 /**
@@ -97,6 +119,8 @@ export class Document {
   readonly #name: DocumentName;
   readonly #createdAt: Dayjs;
   readonly #versions: DocumentVersion[];
+  // 正式版ポインタ。null=未公開。official 状態の版のみが指される。
+  #officialVersionNumber: number | null;
 
   private constructor(params: {
     id: DocumentId;
@@ -104,12 +128,14 @@ export class Document {
     name: DocumentName;
     createdAt: Dayjs;
     versions: DocumentVersion[];
+    officialVersionNumber: number | null;
   }) {
     this.#id = params.id;
     this.#projectId = params.projectId;
     this.#name = params.name;
     this.#createdAt = params.createdAt;
     this.#versions = params.versions;
+    this.#officialVersionNumber = params.officialVersionNumber;
   }
 
   static create(params: {
@@ -124,6 +150,7 @@ export class Document {
       name: params.name,
       createdAt: params.createdAt,
       versions: [],
+      officialVersionNumber: null,
     });
   }
 
@@ -139,6 +166,7 @@ export class Document {
       readonly uploadedBy: string;
       readonly createdAt: Dayjs;
     }[];
+    officialVersionNumber?: number | null;
   }): Document {
     const sorted = [...params.versionsData].sort(
       (a, b) => a.versionNumber - b.versionNumber,
@@ -158,12 +186,25 @@ export class Document {
         createdAt: d.createdAt,
       }),
     );
+    const officialVersionNumber = params.officialVersionNumber ?? null;
+    if (officialVersionNumber !== null) {
+      const official = versions.find(
+        (v) => v.versionNumber === officialVersionNumber,
+      );
+      // 不変条件: 正式版ポインタは official 状態の版のみを指す。
+      if (official?.status.value !== 'official') {
+        throw new InvalidDocumentStateError(
+          '正式版ポインタが official 状態の版を指していません',
+        );
+      }
+    }
     return new Document({
       id: params.id,
       projectId: params.projectId,
       name: params.name,
       createdAt: params.createdAt,
       versions,
+      officialVersionNumber,
     });
   }
 
@@ -190,6 +231,49 @@ export class Document {
     return this.#versions.find((v) => v.versionNumber === versionNumber);
   }
 
+  #requireVersion(versionNumber: number): DocumentVersion {
+    const version = this.#versions.find(
+      (v) => v.versionNumber === versionNumber,
+    );
+    if (version === undefined) {
+      throw new InvalidDocumentStateError(
+        `版 ${String(versionNumber)} が存在しません`,
+      );
+    }
+    return version;
+  }
+
+  /** 版を提出する（draft → under_review）。 */
+  submitVersion(versionNumber: number): void {
+    this.#requireVersion(versionNumber).submit();
+  }
+
+  /** 版を承認済みにする（under_review → approved）。 */
+  approveVersion(versionNumber: number): void {
+    this.#requireVersion(versionNumber).approve();
+  }
+
+  /** 版を差戻しにする（under_review → changes_requested）。 */
+  requestChangesOnVersion(versionNumber: number): void {
+    this.#requireVersion(versionNumber).requestChanges();
+  }
+
+  /** 版を却下する（under_review → rejected）。 */
+  rejectVersion(versionNumber: number): void {
+    this.#requireVersion(versionNumber).reject();
+  }
+
+  /**
+   * 版を正式版として公開する（approved → official）。
+   * 正式版ポインタを更新する。official 化は VersionStatus 側で
+   * approved からのみ許可されるため「正式版は Approved 済みの版のみ」を保証。
+   */
+  publishVersion(versionNumber: number): void {
+    const version = this.#requireVersion(versionNumber);
+    version.publish();
+    this.#officialVersionNumber = versionNumber;
+  }
+
   get id(): DocumentId {
     return this.#id;
   }
@@ -204,6 +288,10 @@ export class Document {
 
   get createdAt(): Dayjs {
     return this.#createdAt;
+  }
+
+  get officialVersionNumber(): number | null {
+    return this.#officialVersionNumber;
   }
 
   get versions(): readonly VersionReadonly[] {

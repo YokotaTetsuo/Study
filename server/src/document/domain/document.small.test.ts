@@ -6,6 +6,7 @@ import { DocumentId } from './document-id';
 import { DocumentName } from './document-name';
 import { DocumentProjectId } from './document-project-id';
 import { InvalidDocumentStateError } from './invalid-document-state-error';
+import { InvalidVersionTransitionError } from './invalid-version-transition-error';
 import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
 
@@ -116,4 +117,107 @@ describe('Document', () => {
       ).toThrow(InvalidDocumentStateError);
     },
   );
+});
+
+describe('Document version workflow', () => {
+  function docWithOneVersion(): Document {
+    const doc = newDocument();
+    doc.addVersion({
+      storageKey: new StorageKey('documents/d/a.pdf'),
+      uploadedBy: new UploaderId(USER_ID),
+      createdAt: NOW,
+    });
+    return doc;
+  }
+
+  it('should walk a version through submit → approve → publish to official', () => {
+    const doc = docWithOneVersion();
+
+    doc.submitVersion(1);
+    expect(doc.findVersion(1)?.status.value).toBe('under_review');
+
+    doc.approveVersion(1);
+    expect(doc.findVersion(1)?.status.value).toBe('approved');
+    expect(doc.officialVersionNumber).toBeNull();
+
+    doc.publishVersion(1);
+    expect(doc.findVersion(1)?.status.value).toBe('official');
+    expect(doc.officialVersionNumber).toBe(1);
+  });
+
+  it('should support the request-changes branch', () => {
+    const doc = docWithOneVersion();
+    doc.submitVersion(1);
+
+    doc.requestChangesOnVersion(1);
+
+    expect(doc.findVersion(1)?.status.value).toBe('changes_requested');
+  });
+
+  it('should support the reject branch', () => {
+    const doc = docWithOneVersion();
+    doc.submitVersion(1);
+
+    doc.rejectVersion(1);
+
+    expect(doc.findVersion(1)?.status.value).toBe('rejected');
+  });
+
+  it('should reject an illegal transition (approve a draft)', () => {
+    const doc = docWithOneVersion();
+
+    expect(() => {
+      doc.approveVersion(1);
+    }).toThrow(InvalidVersionTransitionError);
+  });
+
+  it('should reject operating on a non-existent version', () => {
+    const doc = docWithOneVersion();
+
+    expect(() => {
+      doc.submitVersion(99);
+    }).toThrow(InvalidDocumentStateError);
+  });
+
+  it('should reconstruct with a valid official pointer', () => {
+    const doc = Document.reconstruct({
+      id: new DocumentId(DOC_ID),
+      projectId: new DocumentProjectId(PROJ_ID),
+      name: new DocumentName('設計書'),
+      createdAt: NOW,
+      versionsData: [
+        {
+          versionNumber: 1,
+          status: 'official',
+          storageKey: 'documents/d/a.pdf',
+          uploadedBy: USER_ID,
+          createdAt: NOW,
+        },
+      ],
+      officialVersionNumber: 1,
+    });
+
+    expect(doc.officialVersionNumber).toBe(1);
+  });
+
+  it('should reject reconstruction when the official pointer is not official', () => {
+    expect(() =>
+      Document.reconstruct({
+        id: new DocumentId(DOC_ID),
+        projectId: new DocumentProjectId(PROJ_ID),
+        name: new DocumentName('設計書'),
+        createdAt: NOW,
+        versionsData: [
+          {
+            versionNumber: 1,
+            status: 'draft',
+            storageKey: 'documents/d/a.pdf',
+            uploadedBy: USER_ID,
+            createdAt: NOW,
+          },
+        ],
+        officialVersionNumber: 1,
+      }),
+    ).toThrow(InvalidDocumentStateError);
+  });
 });

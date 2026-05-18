@@ -30,4 +30,48 @@ describe('ApprovalPolicy', () => {
       () => new ApprovalPolicy({ requiredApprovals: 1, approverRoles: [] }),
     ).toThrow(ValidationError);
   });
+
+  describe('canApprove', () => {
+    const policy = new ApprovalPolicy({
+      requiredApprovals: 1,
+      approverRoles: [new ProjectRole('owner'), new ProjectRole('approver')],
+    });
+
+    it('should allow a role contained in approverRoles', () => {
+      expect(policy.canApprove(new ProjectRole('approver'))).toBe(true);
+    });
+
+    it('should deny a role not contained in approverRoles', () => {
+      expect(policy.canApprove(new ProjectRole('reviewer'))).toBe(false);
+    });
+  });
+
+  describe('isSatisfiedBy', () => {
+    const policy = new ApprovalPolicy({
+      requiredApprovals: 2,
+      approverRoles: [new ProjectRole('owner'), new ProjectRole('approver')],
+    });
+
+    it('should be satisfied when qualifying approvals reach the threshold', () => {
+      expect(
+        policy.isSatisfiedBy([
+          new ProjectRole('owner'),
+          new ProjectRole('approver'),
+        ]),
+      ).toBe(true);
+    });
+
+    it('should not be satisfied below the threshold', () => {
+      expect(policy.isSatisfiedBy([new ProjectRole('owner')])).toBe(false);
+    });
+
+    it('should ignore approvals from non-approver roles', () => {
+      expect(
+        policy.isSatisfiedBy([
+          new ProjectRole('owner'),
+          new ProjectRole('reviewer'),
+        ]),
+      ).toBe(false);
+    });
+  });
 });
