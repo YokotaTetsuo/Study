@@ -23,7 +23,6 @@ import { GetProjectUseCase } from '../../project/application/get-project-usecase
 import { ListProjectsUseCase } from '../../project/application/list-projects-usecase';
 import { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
-import { DrizzleReviewRequestRepository } from '../../review/adapters/gateways/drizzle-review-request-repository';
 import { ApproveVersionUseCase } from '../../review/application/approve-version-usecase';
 import { PublishVersionUseCase } from '../../review/application/publish-version-usecase';
 import { RejectVersionUseCase } from '../../review/application/reject-version-usecase';
@@ -32,6 +31,7 @@ import { SubmitVersionUseCase } from '../../review/application/submit-version-us
 import { SystemClock } from '../clock/system-clock';
 import { createDbClient } from '../db/client';
 import type { DbClient } from '../db/client';
+import { DrizzleTransactor } from '../db/drizzle-transactor';
 import type { Env } from '../env';
 import { createApp } from '../http/app';
 import type { AppType } from '../http/app';
@@ -70,8 +70,8 @@ export function createContainer(env: Env): Container {
   const s3Client = createS3Client(env);
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   const documents = new DrizzleDocumentRepository(dbClient.db);
-  const reviewRequests = new DrizzleReviewRequestRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
+  const transactor = new DrizzleTransactor(dbClient.db);
   const ready = ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
 
   const app = createApp({
@@ -119,31 +119,27 @@ export function createContainer(env: Env): Container {
     },
     review: {
       submitVersion: new SubmitVersionUseCase({
-        documents,
-        reviewRequests,
+        transactor,
         projects,
         idGenerator,
         clock,
       }),
       approveVersion: new ApproveVersionUseCase({
-        documents,
-        reviewRequests,
+        transactor,
         projects,
         clock,
       }),
       requestChanges: new RequestChangesUseCase({
-        documents,
-        reviewRequests,
+        transactor,
         projects,
         clock,
       }),
       rejectVersion: new RejectVersionUseCase({
-        documents,
-        reviewRequests,
+        transactor,
         projects,
         clock,
       }),
-      publishVersion: new PublishVersionUseCase({ documents, projects }),
+      publishVersion: new PublishVersionUseCase({ transactor, projects }),
       sessions,
     },
   });

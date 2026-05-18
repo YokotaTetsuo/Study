@@ -11,6 +11,7 @@ import type { ProjectRepository } from '../../project/domain/project-repository'
 import { ProjectRole } from '../../project/domain/project-role';
 import type { Clock } from '../../shared-kernel/clock';
 import type { IdGenerator } from '../../shared-kernel/id-generator';
+import type { Transactor, UnitOfWork } from '../application/unit-of-work';
 import { ReviewRequest } from '../domain/review-request';
 import { ReviewRequestId } from '../domain/review-request-id';
 import type { ReviewRequestRepository } from '../domain/review-request-repository';
@@ -133,5 +134,21 @@ export class InMemoryReviewRequestRepository implements ReviewRequestRepository 
       cloneReviewRequest(reviewRequest),
     );
     return Promise.resolve();
+  }
+}
+
+/**
+ * トランザクションを張らず、与えられた in-memory リポジトリ群を
+ * そのまま work へ渡す Transactor（usecase ロジック検証用）。
+ */
+export class FakeTransactor implements Transactor {
+  readonly #uow: UnitOfWork;
+
+  constructor(uow: UnitOfWork) {
+    this.#uow = uow;
+  }
+
+  run<T>(work: (uow: UnitOfWork) => Promise<T>): Promise<T> {
+    return work(this.#uow);
   }
 }

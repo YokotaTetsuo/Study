@@ -4,18 +4,19 @@ import { and, eq } from 'drizzle-orm';
 import type { DocumentId } from '../../../document/domain/document-id';
 import { ApprovalPolicy } from '../../../project/domain/approval-policy';
 import { ProjectRole } from '../../../project/domain/project-role';
+import { DuplicateApprovalError } from '../../domain/duplicate-approval-error';
 import { ReviewRequest } from '../../domain/review-request';
 import { ReviewRequestId } from '../../domain/review-request-id';
 import type { ReviewRequestRepository } from '../../domain/review-request-repository';
 import { ReviewRequestStatus } from '../../domain/review-request-status';
 
-import type { Database } from './database';
+import type { DbOrTx } from './database';
 import { reviewApprovals, reviewRequests } from './schema';
 
 export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
-  readonly #db: Database;
+  readonly #db: DbOrTx;
 
-  constructor(db: Database) {
+  constructor(db: DbOrTx) {
     this.#db = db;
   }
 
@@ -100,8 +101,7 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
           target: reviewRequests.id,
           set: { status: rrRow.status, decidedAt: rrRow.decidedAt },
         });
-      // 承認は追記専用。既登録の承認者ぶんを除いて素の insert で追加し、
-      // 二重承認は複合主キー違反として伝播させる。
+      // 承認は追記専用。既登録の承認者ぶんを除いて素の insert で追加する。
       const existing = await tx
         .select({ approverId: reviewApprovals.approverId })
         .from(reviewApprovals)
@@ -109,8 +109,26 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
       const persisted = new Set(existing.map((r) => r.approverId));
       const toInsert = approvalRows.filter((a) => !persisted.has(a.approverId));
       if (toInsert.length > 0) {
-        await tx.insert(reviewApprovals).values(toInsert);
+        try {
+          await tx.insert(reviewApprovals).values(toInsert);
+        } catch (e) {
+          // 並行リクエストで同一承認者が複合主キー違反 (23505) を起こした
+          // 場合、API 契約上の競合としてドメイン例外へ変換する。
+          if (isUniqueViolation(e)) {
+            throw new DuplicateApprovalError();
+          }
+          throw e;
+        }
       }
     });
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '23505'
+  );
 }

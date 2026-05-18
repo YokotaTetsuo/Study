@@ -13,6 +13,7 @@ import {
   APPROVER_ID,
   APPROVER_ID_2,
   DOC_ID,
+  FakeTransactor,
   OUTSIDER_ID,
   OWNER_ID,
   PROJECT_ID,
@@ -38,15 +39,13 @@ let documents: InMemoryDocumentRepository;
 let reviewRequests: InMemoryReviewRequestRepository;
 
 function makeDeps(opts?: { requiredApprovals?: number | undefined }): {
-  documents: InMemoryDocumentRepository;
-  reviewRequests: InMemoryReviewRequestRepository;
+  transactor: FakeTransactor;
   projects: SingleProjectRepository;
   idGenerator: ReturnType<typeof idGeneratorReturning>;
   clock: typeof fixedClock;
 } {
   return {
-    documents,
-    reviewRequests,
+    transactor: new FakeTransactor({ documents, reviewRequests }),
     projects: new SingleProjectRepository(
       buildProject({ requiredApprovals: opts?.requiredApprovals }),
     ),
@@ -237,10 +236,7 @@ describe('PublishVersionUseCase', () => {
   it('should publish an approved version as official (owner only)', async () => {
     await approveV1();
 
-    const result = await new PublishVersionUseCase({
-      documents,
-      projects: new SingleProjectRepository(buildProject()),
-    }).execute({
+    const result = await new PublishVersionUseCase(makeDeps()).execute({
       documentId: DOC_ID,
       versionNumber: 1,
       actingUserId: OWNER_ID,
@@ -254,10 +250,7 @@ describe('PublishVersionUseCase', () => {
     await approveV1();
 
     await expect(
-      new PublishVersionUseCase({
-        documents,
-        projects: new SingleProjectRepository(buildProject()),
-      }).execute({
+      new PublishVersionUseCase(makeDeps()).execute({
         documentId: DOC_ID,
         versionNumber: 1,
         actingUserId: APPROVER_ID,
@@ -269,10 +262,7 @@ describe('PublishVersionUseCase', () => {
     await submit();
 
     await expect(
-      new PublishVersionUseCase({
-        documents,
-        projects: new SingleProjectRepository(buildProject()),
-      }).execute({
+      new PublishVersionUseCase(makeDeps()).execute({
         documentId: DOC_ID,
         versionNumber: 1,
         actingUserId: OWNER_ID,

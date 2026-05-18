@@ -7,13 +7,13 @@ import { DocumentName } from '../../domain/document-name';
 import { DocumentProjectId } from '../../domain/document-project-id';
 import type { DocumentRepository } from '../../domain/document-repository';
 
-import type { Database } from './database';
+import type { DbOrTx } from './database';
 import { documentVersions, documents } from './schema';
 
 export class DrizzleDocumentRepository implements DocumentRepository {
-  readonly #db: Database;
+  readonly #db: DbOrTx;
 
-  constructor(db: Database) {
+  constructor(db: DbOrTx) {
     this.#db = db;
   }
 
