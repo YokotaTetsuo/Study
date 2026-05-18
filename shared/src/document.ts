@@ -46,22 +46,22 @@ export type DocumentResponse = z.infer<typeof documentResponseSchema>;
 export const documentListResponseSchema = z.array(documentResponseSchema);
 export type DocumentListResponse = z.infer<typeof documentListResponseSchema>;
 
-// 前後空白を正規化してから 1〜2000 文字を判定する。domain の
-// CommentContent も trim 後に同条件で検証するため、両者の判定を一致
-// させ「空白のみ送信が Zod を通過して domain で例外」を防ぐ。
-const commentContentSchema = z.string().trim().min(1).max(2000);
-
-/** 版に紐づくコメント（スレッド表示用）。 */
+/** 版に紐づくコメント（スレッド表示用のレスポンス形状）。 */
 export const commentSchema = z.object({
   id: z.string(),
   authorId: z.string(),
-  content: commentContentSchema,
+  // レスポンスは domain が trim 済みを保証するため、ここでは値を
+  // 書き換えない（plain）。リクエスト側のみ trim で正規化する。
+  content: z.string().min(1).max(2000),
   createdAt: z.string().datetime(),
 });
 export type Comment = z.infer<typeof commentSchema>;
 
+// 入力は前後空白を正規化してから 1〜2000 文字を判定する。domain の
+// CommentContent も trim 後に同条件で検証するため判定が一致し、
+// 「空白のみ送信が Zod を通過して domain で例外」を防ぐ。
 export const addCommentRequestSchema = z.object({
-  content: commentContentSchema,
+  content: z.string().trim().min(1).max(2000),
 });
 export type AddCommentRequest = z.infer<typeof addCommentRequestSchema>;
 

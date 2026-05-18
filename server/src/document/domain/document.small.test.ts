@@ -14,6 +14,7 @@ import { InvalidDocumentStateError } from './invalid-document-state-error';
 import { InvalidVersionTransitionError } from './invalid-version-transition-error';
 import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
+import { VersionNotFoundError } from './version-not-found-error';
 
 const DOC_ID = '01HQ8ZK9PRSTVWXYZ234567890';
 const PROJ_ID = '01HQ8ZK9PRSTVWXYZ23456789A';
@@ -200,7 +201,7 @@ describe('Document version workflow', () => {
 
     expect(() => {
       doc.submitVersion(99);
-    }).toThrow(InvalidDocumentStateError);
+    }).toThrow(VersionNotFoundError);
   });
 
   it('should reconstruct with a valid official pointer', () => {
@@ -273,7 +274,7 @@ describe('Document comments', () => {
         content: new CommentContent('x'),
         createdAt: NOW,
       }),
-    ).toThrow(InvalidDocumentStateError);
+    ).toThrow(VersionNotFoundError);
   });
 
   it('should let the author delete their own comment', () => {

@@ -11,6 +11,7 @@ import type { DocumentProjectId } from './document-project-id';
 import { InvalidDocumentStateError } from './invalid-document-state-error';
 import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
+import { VersionNotFoundError } from './version-not-found-error';
 import { VersionStatus } from './version-status';
 
 /**
@@ -387,14 +388,15 @@ export class Document {
     return this.#versions.find((v) => v.versionNumber === versionNumber);
   }
 
+  // 版未存在は「不正状態」ではなく「見つからない」。単一の権威的エラー
+  // として VersionNotFoundError を投げ、HTTP では一貫して 404 系に
+  // マップする（usecase 側の重複した事前 findVersion を不要にする）。
   #requireVersion(versionNumber: number): DocumentVersion {
     const version = this.#versions.find(
       (v) => v.versionNumber === versionNumber,
     );
     if (version === undefined) {
-      throw new InvalidDocumentStateError(
-        `版 ${String(versionNumber)} が存在しません`,
-      );
+      throw new VersionNotFoundError();
     }
     return version;
   }

@@ -6,7 +6,6 @@ import { CommentId } from '../domain/comment-id';
 import { DocumentId } from '../domain/document-id';
 import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import type { DocumentRepository } from '../domain/document-repository';
-import { VersionNotFoundError } from '../domain/version-not-found-error';
 
 import { toCommentResult } from './comment-result';
 import type { CommentResult } from './comment-result';
@@ -56,13 +55,7 @@ export class AddCommentUseCase {
     ) {
       throw new NotAuthorizedError();
     }
-    // 版未存在の権威的エラーはここ（アプリ境界）の VersionNotFoundError。
-    // 集約の #requireVersion も InvalidDocumentStateError で防御するが、
-    // それは集約変更の最終ガード。get-version-file-usecase と同じ
-    // 事前チェック慣例に揃え、HTTP には常に 404 系を返す。
-    if (document.findVersion(command.versionNumber) === undefined) {
-      throw new VersionNotFoundError();
-    }
+    // 版未存在は集約が VersionNotFoundError を送出する（単一走査）。
     const comment = document.addComment(command.versionNumber, {
       id: new CommentId(this.#idGenerator.generate()),
       authorId: new CommentAuthorId(command.actingUserId),
