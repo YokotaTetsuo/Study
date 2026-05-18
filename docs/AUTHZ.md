@@ -3,7 +3,8 @@
 全 HTTP エンドポイントについて、認証（誰でも/要ログイン）と認可（メンバー/
 ロール条件）の強制点を一覧化する。実装は **controller でセッション解決
 （未ログインは 401）→ usecase でメンバー/ロール判定（不可は 403）** の二段。
-認可ルールは usecase 層に置き、controller は薄く保つ（`server-clean-architecture.md`）。
+認可ルールは usecase 層に置き、controller は薄く保つ
+（[.claude/rules/server-clean-architecture.md](../.claude/rules/server-clean-architecture.md)）。
 
 エラーは全モジュール共通の `shared-kernel/problem.ts`（`makeProblem`）で
 RFC7807 `application/problem+json` に統一。`401 Unauthorized`（未認証）/
@@ -12,12 +13,12 @@ DB 競合）/ `415` / `400` / `500`。
 
 ## auth
 
-| メソッド/パス         | 認証       | 認可           | 強制点                     |
-| --------------------- | ---------- | -------------- | -------------------------- |
-| POST `/auth/register` | 公開       | なし           | —                          |
-| POST `/auth/login`    | 公開       | なし           | 資格情報不正は 401         |
-| POST `/auth/logout`   | 要ログイン | 本人セッション | セッション破棄             |
-| GET `/auth/me`        | 要ログイン | 本人           | `UnauthenticatedError`→401 |
+| メソッド/パス         | 認証         | 認可 | 強制点                                                    |
+| --------------------- | ------------ | ---- | --------------------------------------------------------- |
+| POST `/auth/register` | 公開         | なし | —                                                         |
+| POST `/auth/login`    | 公開         | なし | 資格情報不正は 401                                        |
+| POST `/auth/logout`   | 不要（公開） | なし | cookie があればそのセッションを破棄。無くても 204（冪等） |
+| GET `/auth/me`        | 要ログイン   | 本人 | `UnauthenticatedError`→401                                |
 
 ## health
 
@@ -66,8 +67,9 @@ DB 競合）/ `415` / `400` / `500`。
 ## 監査結論
 
 - すべての保護エンドポイントは controller でセッションを解決し、未認証は
-  `401`（`application/problem+json`）。`register` / `login` / `health` のみ
-  意図的に公開。
+  `401`（`application/problem+json`）。未認証で到達できるのは `register` /
+  `login` / `health` と `logout`（`logout` はセッション cookie が無くても
+  `204` を返す冪等なセッション破棄であり、保護対象ではない）。
 - メンバー/ロール条件はすべて **usecase 層**で強制（`projectAccess.isMember`
   / `resolveProjectContext` / `assertCanReview` / ApprovalPolicy 評価）。
   controller には認可分岐を置かない。
