@@ -15,9 +15,25 @@ import { reviewApprovals, reviewRequests } from './schema';
 
 export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
   readonly #db: DbOrTx;
+  // 外側（DrizzleTransactor）が既に tx 境界を張っている場合 true。
+  // その際は内部で transaction を張らずネスト savepoint を避ける。
+  readonly #inTx: boolean;
 
-  constructor(db: DbOrTx) {
+  constructor(db: DbOrTx, inTx = false) {
     this.#db = db;
+    this.#inTx = inTx;
+  }
+
+  #withTx<T>(
+    work: (conn: DbOrTx) => Promise<T>,
+    opts?: { readonly isolationLevel: 'repeatable read' },
+  ): Promise<T> {
+    if (this.#inTx) {
+      return work(this.#db);
+    }
+    return opts === undefined
+      ? this.#db.transaction(work)
+      : this.#db.transaction(work, opts);
   }
 
   async findByVersion(
@@ -25,7 +41,7 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
     versionNumber: number,
   ): Promise<ReviewRequest | null> {
     // 依頼行と承認行を一貫スナップショットで読む。
-    const snapshot = await this.#db.transaction(
+    const snapshot = await this.#withTx(
       async (tx) => {
         const rrRows = await tx
           .select()
@@ -92,7 +108,7 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
       decidedAt: a.decidedAt.toDate(),
     }));
 
-    await this.#db.transaction(async (tx) => {
+    await this.#withTx(async (tx) => {
       // 依頼ヘッダは status / decided_at が遷移で変わるため upsert。
       await tx
         .insert(reviewRequests)

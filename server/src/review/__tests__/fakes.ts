@@ -79,11 +79,11 @@ export class SingleProjectRepository implements ProjectRepository {
     return Promise.resolve(id.equals(this.#project.id) ? this.#project : null);
   }
 
-  listByMember(): Promise<readonly Project[]> {
+  listByMember(_userId: MemberUserId): Promise<readonly Project[]> {
     return Promise.resolve([this.#project]);
   }
 
-  save(): Promise<void> {
+  save(_project: Project): Promise<void> {
     return Promise.resolve();
   }
 }

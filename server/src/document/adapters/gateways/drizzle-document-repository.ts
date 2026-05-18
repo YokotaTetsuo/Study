@@ -12,14 +12,30 @@ import { documentVersions, documents } from './schema';
 
 export class DrizzleDocumentRepository implements DocumentRepository {
   readonly #db: DbOrTx;
+  // 外側（DrizzleTransactor）が既に tx 境界を張っている場合 true。
+  // その際は内部で transaction を張らずネスト savepoint を避ける。
+  readonly #inTx: boolean;
 
-  constructor(db: DbOrTx) {
+  constructor(db: DbOrTx, inTx = false) {
     this.#db = db;
+    this.#inTx = inTx;
+  }
+
+  #withTx<T>(
+    work: (conn: DbOrTx) => Promise<T>,
+    opts?: { readonly isolationLevel: 'repeatable read' },
+  ): Promise<T> {
+    if (this.#inTx) {
+      return work(this.#db);
+    }
+    return opts === undefined
+      ? this.#db.transaction(work)
+      : this.#db.transaction(work, opts);
   }
 
   async findById(id: DocumentId): Promise<Document | null> {
     // 2 回の SELECT を一貫スナップショットで読むため REPEATABLE READ。
-    const snapshot = await this.#db.transaction(
+    const snapshot = await this.#withTx(
       async (tx) => {
         const docRows = await tx
           .select()
@@ -63,7 +79,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
     projectId: DocumentProjectId,
   ): Promise<readonly Document[]> {
     // 文書と版の 2 回の SELECT を一貫スナップショットで読む。
-    return this.#db.transaction(
+    return this.#withTx(
       async (tx) => {
         const docRows = await tx
           .select()
@@ -129,7 +145,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
       createdAt: v.createdAt.toDate(),
     }));
 
-    await this.#db.transaction(async (tx) => {
+    await this.#withTx(async (tx) => {
       await tx
         .insert(documents)
         .values(docRow)
