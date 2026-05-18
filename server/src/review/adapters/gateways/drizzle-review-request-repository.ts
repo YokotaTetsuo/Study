@@ -109,14 +109,32 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
     }));
 
     await this.#withTx(async (tx) => {
-      // 依頼ヘッダは status / decided_at が遷移で変わるため upsert。
-      await tx
-        .insert(reviewRequests)
-        .values(rrRow)
-        .onConflictDoUpdate({
-          target: reviewRequests.id,
-          set: { status: rrRow.status, decidedAt: rrRow.decidedAt },
-        });
+      // ヘッダは初回 insert、以降は status/decided_at が実際に変わった
+      // ときだけ UPDATE する。変化なし（例: 充足前の各 approve）で
+      // 無駄に行を書き換えると、別 approver 同士でもヘッダ行ロックで
+      // 直列化失敗(40001)を誘発するため、それを避ける。
+      const current = await tx
+        .select({
+          status: reviewRequests.status,
+          decidedAt: reviewRequests.decidedAt,
+        })
+        .from(reviewRequests)
+        .where(eq(reviewRequests.id, rrRow.id))
+        .limit(1);
+      const head = current[0];
+      if (head === undefined) {
+        await tx.insert(reviewRequests).values(rrRow);
+      } else {
+        const decidedChanged =
+          (head.decidedAt === null ? null : head.decidedAt.getTime()) !==
+          (rrRow.decidedAt === null ? null : rrRow.decidedAt.getTime());
+        if (head.status !== rrRow.status || decidedChanged) {
+          await tx
+            .update(reviewRequests)
+            .set({ status: rrRow.status, decidedAt: rrRow.decidedAt })
+            .where(eq(reviewRequests.id, rrRow.id));
+        }
+      }
       // 承認は追記専用。既登録の承認者ぶんを除いて素の insert で追加する。
       const existing = await tx
         .select({ approverId: reviewApprovals.approverId })
