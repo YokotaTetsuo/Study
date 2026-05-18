@@ -30,6 +30,7 @@ import { ReviewRequestNotFoundError } from '../domain/review-request-not-found-e
 import { UnauthorizedApproverError } from '../domain/unauthorized-approver-error';
 
 import { ApproveVersionUseCase } from './approve-version-usecase';
+import { NotAuthorizedError } from './not-authorized-error';
 import { PublishVersionUseCase } from './publish-version-usecase';
 import { RejectVersionUseCase } from './reject-version-usecase';
 import { RequestChangesUseCase } from './request-changes-usecase';
@@ -103,7 +104,9 @@ describe('SubmitVersionUseCase', () => {
   });
 
   it('should reject a non-member', async () => {
-    await expect(submit({ actingUserId: OUTSIDER_ID })).rejects.toThrow();
+    await expect(submit({ actingUserId: OUTSIDER_ID })).rejects.toThrow(
+      NotAuthorizedError,
+    );
   });
 
   it('should reject an unknown document', async () => {
@@ -255,7 +258,7 @@ describe('PublishVersionUseCase', () => {
         versionNumber: 1,
         actingUserId: APPROVER_ID,
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(NotAuthorizedError);
   });
 
   it('should reject publishing a version that is not approved', async () => {

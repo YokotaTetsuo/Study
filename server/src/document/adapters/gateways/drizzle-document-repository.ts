@@ -162,21 +162,28 @@ export class DrizzleDocumentRepository implements DocumentRepository {
       // （並行アップロード時の採番衝突は複合主キー違反として伝播）、
       // 既登録版は status のみ UPDATE する。
       const existing = await tx
-        .select({ versionNumber: documentVersions.versionNumber })
+        .select({
+          versionNumber: documentVersions.versionNumber,
+          status: documentVersions.status,
+        })
         .from(documentVersions)
         .where(eq(documentVersions.documentId, document.id.value));
-      const persisted = new Set(existing.map((r) => r.versionNumber));
+      const persistedStatus = new Map(
+        existing.map((r) => [r.versionNumber, r.status]),
+      );
       const toInsert = versionRows.filter(
-        (v) => !persisted.has(v.versionNumber),
+        (v) => !persistedStatus.has(v.versionNumber),
       );
       if (toInsert.length > 0) {
         await tx.insert(documentVersions).values(toInsert);
       }
-      // 既登録版の status 更新は版数に比例した N 回 UPDATE を避け、
+      // 既登録版は status が実際に遷移した行だけを対象にし、
       // status ごとにまとめて 1 UPDATE する（distinct status は最大 6）。
+      // 不要な UPDATE による無駄なロック/直列化失敗を避ける。
       const byStatus = new Map<string, number[]>();
       for (const v of versionRows) {
-        if (!persisted.has(v.versionNumber)) {
+        const prev = persistedStatus.get(v.versionNumber);
+        if (prev === undefined || prev === v.status) {
           continue;
         }
         const list = byStatus.get(v.status) ?? [];
