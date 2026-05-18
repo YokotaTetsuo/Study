@@ -6,6 +6,7 @@ import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { UnsupportedContentTypeError } from '../../application/unsupported-content-type-error';
 import { DocumentNotFoundError } from '../../domain/document-not-found-error';
 import { InvalidDocumentStateError } from '../../domain/invalid-document-state-error';
+import { StaleDocumentError } from '../../domain/stale-document-error';
 import { VersionNotFoundError } from '../../domain/version-not-found-error';
 
 export type ProblemStatus = 400 | 401 | 403 | 404 | 409 | 415 | 500;
@@ -37,7 +38,10 @@ export function toProblem(error: unknown): MappedProblem {
   if (error instanceof UnsupportedContentTypeError) {
     return make(415, 'Unsupported Media Type', error.message);
   }
-  if (error instanceof InvalidDocumentStateError) {
+  if (
+    error instanceof InvalidDocumentStateError ||
+    error instanceof StaleDocumentError
+  ) {
     return make(409, 'Conflict', error.message);
   }
   if (error instanceof StoredFileMissingError) {

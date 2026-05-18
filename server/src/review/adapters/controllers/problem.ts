@@ -3,6 +3,7 @@ import type { ProblemDetail } from '@pdf-review/shared';
 import { DocumentNotFoundError } from '../../../document/domain/document-not-found-error';
 import { InvalidDocumentStateError } from '../../../document/domain/invalid-document-state-error';
 import { InvalidVersionTransitionError } from '../../../document/domain/invalid-version-transition-error';
+import { StaleDocumentError } from '../../../document/domain/stale-document-error';
 import { DomainError } from '../../../shared-kernel/domain-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { DuplicateApprovalError } from '../../domain/duplicate-approval-error';
@@ -43,7 +44,8 @@ export function toProblem(error: unknown): MappedProblem {
     error instanceof InvalidDocumentStateError ||
     error instanceof InvalidVersionTransitionError ||
     error instanceof InvalidReviewRequestStateError ||
-    error instanceof DuplicateApprovalError
+    error instanceof DuplicateApprovalError ||
+    error instanceof StaleDocumentError
   ) {
     return make(409, 'Conflict', error.message);
   }

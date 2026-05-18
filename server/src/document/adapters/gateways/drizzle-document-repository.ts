@@ -6,6 +6,7 @@ import { DocumentId } from '../../domain/document-id';
 import { DocumentName } from '../../domain/document-name';
 import { DocumentProjectId } from '../../domain/document-project-id';
 import type { DocumentRepository } from '../../domain/document-repository';
+import { StaleDocumentError } from '../../domain/stale-document-error';
 
 import type { DbOrTx } from './database';
 import { documentVersions, documents } from './schema';
@@ -72,6 +73,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         createdAt: dayjs(v.createdAt),
       })),
       officialVersionNumber: docRow.officialVersionNumber,
+      revision: docRow.revision,
     });
   }
 
@@ -121,6 +123,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
               createdAt: dayjs(v.createdAt),
             })),
             officialVersionNumber: docRow.officialVersionNumber,
+            revision: docRow.revision,
           }),
         );
       },
@@ -146,17 +149,36 @@ export class DrizzleDocumentRepository implements DocumentRepository {
     }));
 
     await this.#withTx(async (tx) => {
-      await tx
-        .insert(documents)
-        .values(docRow)
-        .onConflictDoUpdate({
-          target: documents.id,
-          // name と正式版ポインタは更新されうる（publish で official 化）。
-          set: {
+      // 楽観ロック: 既存文書は読み込み時 revision と一致する場合のみ更新し、
+      // revision を +1 する。不一致（= 読み込み後に別 tx が更新）なら
+      // ステール書き込みとして拒否し、巻き戻しを防ぐ。
+      const current = await tx
+        .select({ revision: documents.revision })
+        .from(documents)
+        .where(eq(documents.id, document.id.value))
+        .limit(1);
+      if (current.length === 0) {
+        await tx.insert(documents).values({ ...docRow, revision: 0 });
+      } else {
+        const updated = await tx
+          .update(documents)
+          .set({
+            // name と正式版ポインタは更新されうる（publish で official 化）。
             name: docRow.name,
             officialVersionNumber: docRow.officialVersionNumber,
-          },
-        });
+            revision: document.revision + 1,
+          })
+          .where(
+            and(
+              eq(documents.id, document.id.value),
+              eq(documents.revision, document.revision),
+            ),
+          )
+          .returning({ id: documents.id });
+        if (updated.length === 0) {
+          throw new StaleDocumentError();
+        }
+      }
       // 版のメタ（storageKey/uploadedBy/createdAt）はイミュータブルだが、
       // status は状態機械で遷移する。未登録版は素の insert で追加し
       // （並行アップロード時の採番衝突は複合主キー違反として伝播）、

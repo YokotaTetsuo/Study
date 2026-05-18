@@ -13,6 +13,8 @@ export const documents = pgTable('documents', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   // 正式版ポインタ。null=未公開。official 状態の版番号のみが入る。
   officialVersionNumber: integer('official_version_number'),
+  // 楽観ロック用リビジョン。save 毎に +1 し、ステール書き込みを検出する。
+  revision: integer('revision').notNull().default(0),
 });
 
 export const documentVersions = pgTable(
