@@ -40,4 +40,19 @@ export class ApprovalPolicy {
   get approverRoles(): readonly ProjectRole[] {
     return [...this.#approverRoles];
   }
+
+  /** 指定ロールがこのポリシー上で承認権限を持つか。 */
+  canApprove(role: ProjectRole): boolean {
+    return this.#approverRoles.some((r) => r.equals(role));
+  }
+
+  /**
+   * 与えられた承認者ロール群でポリシーが充足するか評価する。
+   * 承認可能ロールに該当する承認の数が必要承認数以上なら true。
+   * 承認者の重複排除（同一ユーザーの二重承認禁止）は ReviewRequest 集約の責務。
+   */
+  isSatisfiedBy(approverRoles: readonly ProjectRole[]): boolean {
+    const qualifying = approverRoles.filter((r) => this.canApprove(r)).length;
+    return qualifying >= this.#requiredApprovals;
+  }
 }
