@@ -75,6 +75,10 @@ export function AppShell(): ReactElement {
     trailParams.documentId = params.documentId;
   }
   const trail = buildBreadcrumbTrail(leafRouteId, trailParams);
+  // 版プレビュー専用ページは PDF を主役にするため幅制約を外す。
+  const wide =
+    leafRouteId ===
+    '/projects/$projectId/documents/$documentId/versions/$versionNumber';
 
   return (
     <Box>
@@ -107,7 +111,7 @@ export function AppShell(): ReactElement {
           </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="md" sx={{ py: 3 }}>
+      <Container maxWidth={wide ? false : 'md'} sx={{ py: 3 }}>
         <Box sx={{ mb: 2 }}>
           <AppBreadcrumbs trail={trail} />
         </Box>
