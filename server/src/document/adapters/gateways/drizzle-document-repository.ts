@@ -157,16 +157,19 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         .from(documents)
         .where(eq(documents.id, document.id.value))
         .limit(1);
+      let nextRevision: number;
       if (current.length === 0) {
         await tx.insert(documents).values({ ...docRow, revision: 0 });
+        nextRevision = 0;
       } else {
+        nextRevision = document.revision + 1;
         const updated = await tx
           .update(documents)
           .set({
             // name と正式版ポインタは更新されうる（publish で official 化）。
             name: docRow.name,
             officialVersionNumber: docRow.officialVersionNumber,
-            revision: document.revision + 1,
+            revision: nextRevision,
           })
           .where(
             and(
@@ -179,6 +182,8 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           throw new StaleDocumentError();
         }
       }
+      // 永続化済みリビジョンを集約へ反映し、同一インスタンスの再 save を可能にする。
+      document.syncRevision(nextRevision);
       // 版のメタ（storageKey/uploadedBy/createdAt）はイミュータブルだが、
       // status は状態機械で遷移する。未登録版は素の insert で追加し
       // （並行アップロード時の採番衝突は複合主キー違反として伝播）、

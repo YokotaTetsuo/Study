@@ -105,6 +105,20 @@ describe('DrizzleDocumentRepository', () => {
     ]);
   });
 
+  it('should allow re-saving the same instance (revision synced)', async () => {
+    const doc = aDocument();
+    await repo.save(doc);
+    doc.addVersion({
+      storageKey: new StorageKey('documents/d/a.pdf'),
+      uploadedBy: new UploaderId(USER_ID),
+      createdAt: NOW,
+    });
+
+    await expect(repo.save(doc)).resolves.not.toThrow();
+    const found = await repo.findById(new DocumentId(DOC_ID));
+    expect(found?.versions).toHaveLength(1);
+  });
+
   it('should reject a stale write (optimistic lock conflict)', async () => {
     await repo.save(aDocument());
 

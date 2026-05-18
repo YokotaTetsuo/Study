@@ -122,7 +122,7 @@ export class Document {
   // 正式版ポインタ。null=未公開。official 状態の版のみが指される。
   #officialVersionNumber: number | null;
   // 楽観ロック用リビジョン。読み込み時の値を保持し、保存時の競合検出に使う。
-  readonly #revision: number;
+  #revision: number;
 
   private constructor(params: {
     id: DocumentId;
@@ -304,6 +304,15 @@ export class Document {
   /** 読み込み時の楽観ロックリビジョン（永続化での競合検出に使う）。 */
   get revision(): number {
     return this.#revision;
+  }
+
+  /**
+   * 永続化成功後に DB 側の確定リビジョンを集約へ反映する（Repository 専用）。
+   * 同一リクエスト内で同じ集約を再 save しても revision 不一致で
+   * StaleDocumentError にならないようにするためのフック。
+   */
+  syncRevision(revision: number): void {
+    this.#revision = revision;
   }
 
   get versions(): readonly VersionReadonly[] {
