@@ -2,7 +2,6 @@ import {
   Alert,
   Box,
   Button,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -15,7 +14,11 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
-import { useDocument, useUploadVersion } from '../../../features/document';
+import { useDocument } from '../../../features/document';
+import {
+  UploadDropzone,
+  useUploadVersion,
+} from '../../../features/upload-version';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
 export function DocumentDetailPage(): ReactElement {
@@ -24,9 +27,6 @@ export function DocumentDetailPage(): ReactElement {
   });
   const document = useDocument(documentId);
   const upload = useUploadVersion(documentId);
-  const [file, setFile] = useState<File | null>(null);
-  // input を再マウントして同一ファイルの再選択でも onChange を発火させる。
-  const [inputKey, setInputKey] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
 
   const versions = document.data?.versions;
@@ -52,49 +52,21 @@ export function DocumentDetailPage(): ReactElement {
         {d.name}
       </Typography>
 
-      <Box
-        component="form"
-        sx={{ mb: 3 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (file !== null) {
-            upload.mutate(file, {
-              onSuccess: () => {
-                setFile(null);
-                setInputKey((k) => k + 1);
-              },
-            });
-          }
+      {d.versions.length === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          まだ版がありません。最初の PDF をアップロードして版 1
+          を作成しましょう。
+        </Alert>
+      )}
+
+      <UploadDropzone
+        onUpload={(f) => {
+          upload.mutate(f);
         }}
-      >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Button component="label" variant="outlined">
-            {file !== null ? file.name : 'PDF を選択'}
-            <input
-              key={inputKey}
-              hidden
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-              }}
-            />
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={file === null || upload.isPending}
-          >
-            版をアップロード
-          </Button>
-        </Stack>
-        {upload.isError && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            アップロードに失敗しました。対応形式は PDF
-            のみです。ファイルサイズ・権限・通信状況もご確認ください。
-          </Alert>
-        )}
-      </Box>
+        pending={upload.isPending}
+        succeeded={upload.isSuccess}
+        failed={upload.isError}
+      />
 
       <Typography variant="h6" sx={{ mt: 2 }}>
         版履歴
