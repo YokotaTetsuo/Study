@@ -46,10 +46,16 @@ const BAD_VERSION_BODY = {
   detail: 'versionNumber が不正です',
 } as const;
 
-/** パス上の versionNumber を正の整数へ。不正なら null。 */
+/**
+ * パス上の versionNumber を正の整数へ。先頭ゼロ・指数表記・安全整数
+ * 超過を弾き（"1e2" や 9007199254740993 等の誤解釈防止）、不正なら null。
+ */
 function parseVersionNumber(raw: string): number | null {
+  if (!/^[1-9][0-9]*$/.test(raw)) {
+    return null;
+  }
   const n = Number(raw);
-  return Number.isInteger(n) && n >= 1 ? n : null;
+  return Number.isSafeInteger(n) ? n : null;
 }
 
 interface DocumentDeps {
