@@ -2,6 +2,7 @@ import type { ProblemDetail } from '@pdf-review/shared';
 
 import { isDbConflict } from '../../../shared-kernel/db-conflict';
 import { DomainError } from '../../../shared-kernel/domain-error';
+import { makeProblem } from '../../../shared-kernel/problem';
 import { StoredFileMissingError } from '../../../shared-kernel/stored-file-missing-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { UnsupportedContentTypeError } from '../../application/unsupported-content-type-error';
@@ -19,53 +20,49 @@ export interface MappedProblem {
   readonly body: ProblemDetail;
 }
 
-function make(
-  status: ProblemStatus,
-  title: string,
-  detail: string,
-): MappedProblem {
-  return { status, body: { type: 'about:blank', title, status, detail } };
-}
-
 /** document のドメイン/アプリ例外を RFC7807 へマッピングする。 */
 export function toProblem(error: unknown): MappedProblem {
   if (
     error instanceof NotAuthorizedError ||
     error instanceof CommentForbiddenError
   ) {
-    return make(403, 'Forbidden', error.message);
+    return makeProblem(403, 'Forbidden', error.message);
   }
   if (
     error instanceof DocumentNotFoundError ||
     error instanceof VersionNotFoundError ||
     error instanceof CommentNotFoundError
   ) {
-    return make(404, 'Not Found', error.message);
+    return makeProblem(404, 'Not Found', error.message);
   }
   if (error instanceof UnsupportedContentTypeError) {
-    return make(415, 'Unsupported Media Type', error.message);
+    return makeProblem(415, 'Unsupported Media Type', error.message);
   }
   if (
     error instanceof InvalidDocumentStateError ||
     error instanceof StaleDocumentError
   ) {
-    return make(409, 'Conflict', error.message);
+    return makeProblem(409, 'Conflict', error.message);
   }
   if (error instanceof StoredFileMissingError) {
     // 版メタデータは在るのに blob が無い = ストレージ不整合（運用調査対象）。
-    return make(500, 'Internal Server Error', 'ファイルの取得に失敗しました');
+    return makeProblem(
+      500,
+      'Internal Server Error',
+      'ファイルの取得に失敗しました',
+    );
   }
   if (error instanceof DomainError) {
-    return make(400, 'Bad Request', error.message);
+    return makeProblem(400, 'Bad Request', error.message);
   }
   if (isDbConflict(error)) {
     // 直列化失敗/デッドロック/UNIQUE 違反は並行操作の競合。
     // 再試行可能な競合として 409 にする（500 にしない）。
-    return make(
+    return makeProblem(
       409,
       'Conflict',
       '同時更新が競合しました。時間をおいて再試行してください',
     );
   }
-  return make(500, 'Internal Server Error', 'unexpected error');
+  return makeProblem(500, 'Internal Server Error', 'unexpected error');
 }

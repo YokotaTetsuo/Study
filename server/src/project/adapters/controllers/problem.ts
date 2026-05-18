@@ -1,6 +1,8 @@
 import type { ProblemDetail } from '@pdf-review/shared';
 
+import { isDbConflict } from '../../../shared-kernel/db-conflict';
 import { DomainError } from '../../../shared-kernel/domain-error';
+import { makeProblem } from '../../../shared-kernel/problem';
 import { MemberUserNotFoundError } from '../../application/member-user-not-found-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { InvalidProjectStateError } from '../../domain/invalid-project-state-error';
@@ -21,46 +23,47 @@ export interface MappedProblem {
   readonly body: ProblemDetail;
 }
 
-function make(
-  status: ProblemStatus,
-  title: string,
-  detail: string,
-): MappedProblem {
-  return { status, body: { type: 'about:blank', title, status, detail } };
-}
-
 /** プロジェクトのドメイン/アプリ例外を RFC7807 へマッピングする。 */
 export function toProblem(error: unknown): MappedProblem {
   if (error instanceof NotAuthorizedError) {
-    return make(403, 'Forbidden', error.message);
+    return makeProblem(403, 'Forbidden', error.message);
   }
   if (
     error instanceof ProjectNotFoundError ||
     error instanceof MemberNotFoundError ||
     error instanceof MemberUserNotFoundError
   ) {
-    return make(404, 'Not Found', error.message);
+    return makeProblem(404, 'Not Found', error.message);
   }
   if (
     error instanceof MemberAlreadyExistsError ||
     error instanceof LastOwnerError ||
     error instanceof InvalidProjectStateError
   ) {
-    return make(409, 'Conflict', error.message);
+    return makeProblem(409, 'Conflict', error.message);
   }
   if (error instanceof DomainError) {
-    return make(400, 'Bad Request', error.message);
+    return makeProblem(400, 'Bad Request', error.message);
   }
   if (
     error instanceof MemberProfileMissingError ||
     error instanceof ResponseSerializationError
   ) {
     // データ整合性の不変条件破れ。診断しやすいよう明示的に 500 化する。
-    return make(
+    return makeProblem(
       500,
       'Internal Server Error',
       'メンバーのユーザー情報を解決できませんでした',
     );
   }
-  return make(500, 'Internal Server Error', 'unexpected error');
+  if (isDbConflict(error)) {
+    // 同時メンバー追加による project_members の UNIQUE 競合等。
+    // 再試行可能な競合として 409 にする。
+    return makeProblem(
+      409,
+      'Conflict',
+      '同時更新が競合しました。時間をおいて再試行してください',
+    );
+  }
+  return makeProblem(500, 'Internal Server Error', 'unexpected error');
 }

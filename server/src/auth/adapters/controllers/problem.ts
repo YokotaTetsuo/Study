@@ -1,6 +1,8 @@
 import type { ProblemDetail } from '@pdf-review/shared';
 
+import { isDbConflict } from '../../../shared-kernel/db-conflict';
 import { DomainError } from '../../../shared-kernel/domain-error';
+import { makeProblem } from '../../../shared-kernel/problem';
 import { EmailAlreadyInUseError } from '../../application/email-already-in-use-error';
 import { InvalidCredentialsError } from '../../application/invalid-credentials-error';
 import { UnauthenticatedError } from '../../application/unauthenticated-error';
@@ -13,31 +15,31 @@ export interface MappedProblem {
   readonly body: ProblemDetail;
 }
 
-function make(
-  status: ProblemStatus,
-  title: string,
-  detail: string,
-): MappedProblem {
-  return { status, body: { type: 'about:blank', title, status, detail } };
-}
-
 /** ドメイン/アプリ例外を RFC7807 へマッピングする。 */
 export function toProblem(error: unknown): MappedProblem {
   if (error instanceof EmailAlreadyInUseError) {
-    return make(409, 'Conflict', error.message);
+    return makeProblem(409, 'Conflict', error.message);
   }
   if (
     error instanceof InvalidCredentialsError ||
     error instanceof UnauthenticatedError
   ) {
-    return make(401, 'Unauthorized', error.message);
+    return makeProblem(401, 'Unauthorized', error.message);
   }
   if (error instanceof UserNotFoundError) {
-    return make(404, 'Not Found', error.message);
+    return makeProblem(404, 'Not Found', error.message);
   }
   if (error instanceof DomainError) {
     // ValidationError 等
-    return make(400, 'Bad Request', error.message);
+    return makeProblem(400, 'Bad Request', error.message);
   }
-  return make(500, 'Internal Server Error', 'unexpected error');
+  if (isDbConflict(error)) {
+    // 同時登録による email UNIQUE 競合等。再試行可能な競合として 409。
+    return makeProblem(
+      409,
+      'Conflict',
+      '同時更新が競合しました。時間をおいて再試行してください',
+    );
+  }
+  return makeProblem(500, 'Internal Server Error', 'unexpected error');
 }
