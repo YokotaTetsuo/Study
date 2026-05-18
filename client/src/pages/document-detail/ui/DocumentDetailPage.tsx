@@ -27,6 +27,7 @@ import {
   VersionActions,
   VersionStatusBadge,
 } from '../../../features/version-workflow';
+import { prefetchPdf } from '../../../shared/lib/pdf-cache';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
 // 行のうちプレビュー切替に使うセルの見た目（クリック可能を示す）。
@@ -118,6 +119,17 @@ export function DocumentDetailPage(): ReactElement {
       setSelected((prev) => prev ?? last.versionNumber);
     }
   }, [versions]);
+
+  // ページ到達時点で全版の PDF を事前読み込みし、版切替を即時化する
+  // （切替時の再フェッチ/再パースによるちらつきを防ぐ）。
+  useEffect(() => {
+    if (versions === undefined) {
+      return;
+    }
+    for (const v of versions) {
+      prefetchPdf(versionFileUrl(documentId, v.versionNumber));
+    }
+  }, [versions, documentId]);
 
   if (document.isPending) {
     return <Typography>読み込み中…</Typography>;
