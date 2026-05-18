@@ -2,7 +2,8 @@
  * 開発用シード。サンプルのユーザー / プロジェクト / 文書 / 版 /
  * コメントを投入する。usecase 経由で作成し不変条件を尊重する。
  *
- * 冪等: 先頭ユーザー（owner@example.com）が既に居れば何もしない。
+ * 冪等かつ回復可能: 各エンティティの存在を都度確認して未作成のものだけ
+ * 作る。途中失敗しても再実行で続きから完了できる。
  * 実行: `pnpm --filter @pdf-review/server seed`（要 DB / S3、migrate 済み）。
  */
 import { Argon2PasswordHasher } from '../auth/adapters/gateways/argon2-password-hasher';
@@ -14,13 +15,19 @@ import { SqlProjectAccess } from '../document/adapters/gateways/sql-project-acce
 import { AddCommentUseCase } from '../document/application/add-comment-usecase';
 import { CreateDocumentUseCase } from '../document/application/create-document-usecase';
 import { UploadVersionUseCase } from '../document/application/upload-version-usecase';
+import { DocumentId } from '../document/domain/document-id';
+import { DocumentProjectId } from '../document/domain/document-project-id';
 import { DrizzleProjectRepository } from '../project/adapters/gateways/drizzle-project-repository';
 import { DrizzleUserDirectory } from '../project/adapters/gateways/drizzle-user-directory';
 import { AddMemberUseCase } from '../project/application/add-member-usecase';
 import { CreateProjectUseCase } from '../project/application/create-project-usecase';
+import { UpdateApprovalPolicyUseCase } from '../project/application/update-approval-policy-usecase';
+import { MemberAlreadyExistsError } from '../project/domain/member-already-exists-error';
+import { MemberUserId } from '../project/domain/member-user-id';
 
 import { SystemClock } from './clock/system-clock';
 import { createDbClient } from './db/client';
+import type { DbClient } from './db/client';
 import { loadEnv } from './env';
 import { UlidIdGenerator } from './id/ulid-id-generator';
 import { createS3Client, ensureBucket } from './storage/s3-client';
@@ -32,24 +39,41 @@ const log = (message: string): void => {
 /* eslint-enable no-console */
 
 const PASSWORD = 'password1234';
+const PROJECT_NAME = 'サンプルプロジェクト';
+const DOCUMENT_NAME = '設計仕様書';
 const MINIMAL_PDF = new TextEncoder().encode(
   '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
 );
 
-async function main(): Promise<void> {
+interface SeedUser {
+  readonly email: string;
+  readonly displayName: string;
+  readonly role: 'owner' | 'approver' | 'reviewer' | 'submitter';
+}
+
+const SEED_USERS: readonly SeedUser[] = [
+  { email: 'owner@example.com', displayName: 'オーナー太郎', role: 'owner' },
+  {
+    email: 'approver@example.com',
+    displayName: '承認者花子',
+    role: 'approver',
+  },
+  {
+    email: 'reviewer@example.com',
+    displayName: 'レビュアー次郎',
+    role: 'reviewer',
+  },
+  {
+    email: 'submitter@example.com',
+    displayName: '起票者三郎',
+    role: 'submitter',
+  },
+];
+
+async function run(dbClient: DbClient): Promise<void> {
   const env = loadEnv(process.env);
-  const dbClient = createDbClient(env);
   const clock = new SystemClock();
   const idGenerator = new UlidIdGenerator();
-
-  const existing = await dbClient.sql`
-    select 1 from users where email = 'owner@example.com' limit 1
-  `;
-  if (existing.length > 0) {
-    log('シード済みのためスキップします。');
-    await dbClient.sql.end();
-    return;
-  }
 
   const users = new DrizzleUserRepository(dbClient.db);
   const hasher = new Argon2PasswordHasher();
@@ -68,6 +92,7 @@ async function main(): Promise<void> {
     clock,
   });
   const addMember = new AddMemberUseCase({ projects, userDirectory });
+  const updatePolicy = new UpdateApprovalPolicyUseCase({ projects });
   const createDocument = new CreateDocumentUseCase({
     documents,
     projectAccess,
@@ -88,68 +113,131 @@ async function main(): Promise<void> {
     clock,
   });
 
-  const owner = await register.execute({
-    email: 'owner@example.com',
-    password: PASSWORD,
-    displayName: 'オーナー太郎',
-  });
-  await register.execute({
-    email: 'approver@example.com',
-    password: PASSWORD,
-    displayName: '承認者花子',
-  });
-  await register.execute({
-    email: 'reviewer@example.com',
-    password: PASSWORD,
-    displayName: 'レビュアー次郎',
-  });
-  const submitter = await register.execute({
-    email: 'submitter@example.com',
-    password: PASSWORD,
-    displayName: '起票者三郎',
+  // ユーザー: 既存ならその id、無ければ登録（再実行で重複登録しない）。
+  const userIdByEmail = new Map<string, string>();
+  for (const u of SEED_USERS) {
+    const rows = await dbClient.sql<{ id: string }[]>`
+      select id from users where email = ${u.email} limit 1
+    `;
+    const existingId = rows[0]?.id;
+    if (existingId !== undefined) {
+      userIdByEmail.set(u.email, existingId);
+      continue;
+    }
+    const created = await register.execute({
+      email: u.email,
+      password: PASSWORD,
+      displayName: u.displayName,
+    });
+    userIdByEmail.set(u.email, created.id);
+  }
+  const ownerId = userIdByEmail.get('owner@example.com');
+  if (ownerId === undefined) {
+    throw new Error('owner user could not be resolved');
+  }
+
+  // プロジェクト: owner の参加プロジェクトから名前一致を探す。無ければ作成。
+  const ownerProjects = await projects.listByMember(new MemberUserId(ownerId));
+  const existingProject = ownerProjects.find(
+    (p) => p.name.value === PROJECT_NAME,
+  );
+  const projectId =
+    existingProject?.id.value ??
+    (
+      await createProject.execute({
+        name: PROJECT_NAME,
+        ownerUserId: ownerId,
+      })
+    ).id;
+
+  // メンバー追加（既存は MemberAlreadyExistsError を握り潰して継続）。
+  for (const u of SEED_USERS) {
+    if (u.role === 'owner') {
+      continue;
+    }
+    try {
+      await addMember.execute({
+        projectId,
+        actingUserId: ownerId,
+        email: u.email,
+        role: u.role,
+      });
+    } catch (error) {
+      if (!(error instanceof MemberAlreadyExistsError)) {
+        throw error;
+      }
+    }
+  }
+
+  // 承認ポリシー: approver も承認できるようにする（README の確認フロー前提）。
+  // 冪等な上書き操作。
+  await updatePolicy.execute({
+    projectId,
+    actingUserId: ownerId,
+    requiredApprovals: 1,
+    approverRoles: ['owner', 'approver'],
   });
 
-  const project = await createProject.execute({
-    name: 'サンプルプロジェクト',
-    ownerUserId: owner.id,
-  });
-  for (const [email, role] of [
-    ['approver@example.com', 'approver'],
-    ['reviewer@example.com', 'reviewer'],
-    ['submitter@example.com', 'submitter'],
-  ] as const) {
-    await addMember.execute({
-      projectId: project.id,
-      actingUserId: owner.id,
-      email,
-      role,
+  const submitterId = userIdByEmail.get('submitter@example.com');
+  if (submitterId === undefined) {
+    throw new Error('submitter user could not be resolved');
+  }
+
+  // 文書: 同名が無ければ作成。
+  const projectDocs = await documents.listByProject(
+    new DocumentProjectId(projectId),
+  );
+  const existingDoc = projectDocs.find((d) => d.name.value === DOCUMENT_NAME);
+  const documentId =
+    existingDoc?.id.value ??
+    (
+      await createDocument.execute({
+        projectId,
+        name: DOCUMENT_NAME,
+        actingUserId: submitterId,
+      })
+    ).id;
+
+  // 版: まだ無ければ v1 をアップロード。
+  const docForVersion = await documents.findById(new DocumentId(documentId));
+  if (docForVersion === null) {
+    throw new Error('seeded document not found after creation');
+  }
+  if (docForVersion.versions.length === 0) {
+    await uploadVersion.execute({
+      documentId,
+      actingUserId: submitterId,
+      data: MINIMAL_PDF,
+      contentType: 'application/pdf',
     });
   }
 
-  const document = await createDocument.execute({
-    projectId: project.id,
-    name: '設計仕様書',
-    actingUserId: submitter.id,
-  });
-  await uploadVersion.execute({
-    documentId: document.id,
-    actingUserId: submitter.id,
-    data: MINIMAL_PDF,
-    contentType: 'application/pdf',
-  });
-  await addComment.execute({
-    documentId: document.id,
-    versionNumber: 1,
-    actingUserId: owner.id,
-    content: '初版を確認しました。体裁を整えてください。',
-  });
+  // コメント: v1 に未投稿なら 1 件追加。
+  const docForComment = await documents.findById(new DocumentId(documentId));
+  if (docForComment !== null && docForComment.commentsOf(1).length === 0) {
+    await addComment.execute({
+      documentId,
+      versionNumber: 1,
+      actingUserId: ownerId,
+      content: '初版を確認しました。体裁を整えてください。',
+    });
+  }
 
   log('シード完了:');
   log('  ログイン: owner@example.com / approver@example.com /');
   log('            reviewer@example.com / submitter@example.com');
   log(`  パスワード（共通）: ${PASSWORD}`);
-  log(`  プロジェクト「サンプルプロジェクト」/ 文書「設計仕様書」v1`);
-  await dbClient.sql.end();
+  log(`  プロジェクト「${PROJECT_NAME}」/ 文書「${DOCUMENT_NAME}」v1`);
+}
+
+async function main(): Promise<void> {
+  const dbClient = createDbClient(loadEnv(process.env));
+  try {
+    await run(dbClient);
+  } finally {
+    // 成功・失敗いずれでも接続プールを閉じ、プロセスが残らないようにする。
+    await dbClient.sql.end();
+  }
 }
 
 main().catch((error: unknown) => {
