@@ -48,8 +48,9 @@ S3、それ以外の機能には DB も必須。既定値（`.env.example`）の
 cp .env.example .env                      # 既定: DB_PORT=5432 / S3 :9000
 docker compose up -d                      # postgres(:5432) + rustfs(:9000)
 docker compose ps                         # postgres が healthy になるまで待つ
-curl -fs http://localhost:9000 >/dev/null # rustfs 疎通（server 起動時に
-                                          #   ensureBucket が走るため）
+curl -s -o /dev/null http://localhost:9000 # rustfs 疎通（CI と同じく -f
+                                           #  無し。server 起動時に
+                                           #  ensureBucket が走るため）
 pnpm --filter @pdf-review/server db:migrate  # マイグレーション適用（0000〜）
 pnpm dev                                  # server :3000 / client :5173
 docker compose down                       # 停止（データは volume に保持）
