@@ -10,7 +10,6 @@ import {
   createDocument,
   documentQueryOptions,
   documentsByProjectQueryOptions,
-  uploadVersion,
 } from '../../../entities/document';
 
 export function useDocuments(
@@ -33,18 +32,6 @@ export function useCreateDocument(): UseMutationResult<
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createDocument,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
-    },
-  });
-}
-
-export function useUploadVersion(
-  documentId: string,
-): UseMutationResult<DocumentResponse, Error, File> {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (file: File) => uploadVersion(documentId, file),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
     },
