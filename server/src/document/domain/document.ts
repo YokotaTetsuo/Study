@@ -121,6 +121,8 @@ export class Document {
   readonly #versions: DocumentVersion[];
   // 正式版ポインタ。null=未公開。official 状態の版のみが指される。
   #officialVersionNumber: number | null;
+  // 楽観ロック用リビジョン。読み込み時の値を保持し、保存時の競合検出に使う。
+  readonly #revision: number;
 
   private constructor(params: {
     id: DocumentId;
@@ -129,6 +131,7 @@ export class Document {
     createdAt: Dayjs;
     versions: DocumentVersion[];
     officialVersionNumber: number | null;
+    revision: number;
   }) {
     this.#id = params.id;
     this.#projectId = params.projectId;
@@ -136,6 +139,7 @@ export class Document {
     this.#createdAt = params.createdAt;
     this.#versions = params.versions;
     this.#officialVersionNumber = params.officialVersionNumber;
+    this.#revision = params.revision;
   }
 
   static create(params: {
@@ -151,6 +155,7 @@ export class Document {
       createdAt: params.createdAt,
       versions: [],
       officialVersionNumber: null,
+      revision: 0,
     });
   }
 
@@ -167,6 +172,7 @@ export class Document {
       readonly createdAt: Dayjs;
     }[];
     officialVersionNumber?: number | null;
+    revision?: number;
   }): Document {
     const sorted = [...params.versionsData].sort(
       (a, b) => a.versionNumber - b.versionNumber,
@@ -205,6 +211,7 @@ export class Document {
       createdAt: params.createdAt,
       versions,
       officialVersionNumber,
+      revision: params.revision ?? 0,
     });
   }
 
@@ -292,6 +299,11 @@ export class Document {
 
   get officialVersionNumber(): number | null {
     return this.#officialVersionNumber;
+  }
+
+  /** 読み込み時の楽観ロックリビジョン（永続化での競合検出に使う）。 */
+  get revision(): number {
+    return this.#revision;
   }
 
   get versions(): readonly VersionReadonly[] {

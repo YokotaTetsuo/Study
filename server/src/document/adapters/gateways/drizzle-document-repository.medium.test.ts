@@ -7,6 +7,7 @@ import { Document } from '../../domain/document';
 import { DocumentId } from '../../domain/document-id';
 import { DocumentName } from '../../domain/document-name';
 import { DocumentProjectId } from '../../domain/document-project-id';
+import { StaleDocumentError } from '../../domain/stale-document-error';
 import { StorageKey } from '../../domain/storage-key';
 import { UploaderId } from '../../domain/uploader-id';
 
@@ -102,5 +103,27 @@ describe('DrizzleDocumentRepository', () => {
       DOC_ID,
       '01HQ8ZK9PRSTVWXYZ23456789D',
     ]);
+  });
+
+  it('should reject a stale write (optimistic lock conflict)', async () => {
+    await repo.save(aDocument());
+
+    // 2 つのリクエストが同じ revision 0 の文書を読み込む。
+    const a = await repo.findById(new DocumentId(DOC_ID));
+    const b = await repo.findById(new DocumentId(DOC_ID));
+    if (a === null || b === null) {
+      throw new Error('seeded document not found');
+    }
+
+    // 先に a を保存すると revision が進む。
+    a.addVersion({
+      storageKey: new StorageKey('documents/d/a.pdf'),
+      uploadedBy: new UploaderId(USER_ID),
+      createdAt: NOW,
+    });
+    await repo.save(a);
+
+    // ステールな b の保存は拒否される（巻き戻し防止）。
+    await expect(repo.save(b)).rejects.toThrow(StaleDocumentError);
   });
 });
