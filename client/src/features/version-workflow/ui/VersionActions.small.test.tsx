@@ -104,6 +104,16 @@ describe('VersionActions', () => {
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 
+  it('should hide 提出 for a draft when the user cannot submit', () => {
+    renderActions('draft', false, {
+      canSubmit: false,
+      canApprove: false,
+      canReview: false,
+      canPublish: false,
+    });
+    expect(screen.queryByRole('button', { name: '提出' })).toBeNull();
+  });
+
   it('should hide publish when the user is not an owner', () => {
     renderActions('approved', false, {
       canSubmit: true,
