@@ -9,7 +9,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
@@ -29,6 +29,9 @@ import {
 } from '../../../features/version-workflow';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
+// 行のうちプレビュー切替に使うセルの見た目（クリック可能を示す）。
+const previewCellSx = { cursor: 'pointer' } as const;
+
 export function DocumentDetailPage(): ReactElement {
   const { projectId, documentId } = useParams({
     from: '/projects/$projectId/documents/$documentId',
@@ -41,6 +44,7 @@ export function DocumentDetailPage(): ReactElement {
   const me = useMe();
   const upload = useUploadVersion(documentId);
   const workflow = useVersionWorkflow(documentId);
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<number | null>(null);
 
   // 現在ユーザーのプロジェクト内ロールと承認ポリシーから、提示してよい
@@ -155,11 +159,30 @@ export function DocumentDetailPage(): ReactElement {
                 key={v.versionNumber}
                 selected={selected === v.versionNumber}
               >
-                <TableCell>v{v.versionNumber}</TableCell>
-                <TableCell>
+                {/* 版/状態/作成日時セルのクリックでインラインプレビュー切替。
+                    操作・表示セルは別扱いにし、伝播衝突を構造で避ける。 */}
+                <TableCell
+                  onClick={() => {
+                    setSelected(v.versionNumber);
+                  }}
+                  sx={previewCellSx}
+                >
+                  v{v.versionNumber}
+                </TableCell>
+                <TableCell
+                  onClick={() => {
+                    setSelected(v.versionNumber);
+                  }}
+                  sx={previewCellSx}
+                >
                   <VersionStatusBadge status={v.status} />
                 </TableCell>
-                <TableCell>
+                <TableCell
+                  onClick={() => {
+                    setSelected(v.versionNumber);
+                  }}
+                  sx={previewCellSx}
+                >
                   {new Date(v.createdAt).toLocaleString('ja-JP')}
                 </TableCell>
                 <TableCell>
@@ -188,7 +211,14 @@ export function DocumentDetailPage(): ReactElement {
                   <Button
                     size="small"
                     onClick={() => {
-                      setSelected(v.versionNumber);
+                      void navigate({
+                        to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+                        params: {
+                          projectId: d.projectId,
+                          documentId,
+                          versionNumber: String(v.versionNumber),
+                        },
+                      });
                     }}
                   >
                     表示
