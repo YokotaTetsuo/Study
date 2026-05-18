@@ -1,5 +1,6 @@
 import {
   foreignKey,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -55,5 +56,12 @@ export const documentComments = pgTable(
         documentVersions.versionNumber,
       ],
     }).onDelete('cascade'),
+    // findById/listByProject は document_id で絞り版番号・作成日時順に
+    // 取得する。コメント増加時のシーケンシャルスキャンを避ける複合索引。
+    index('document_comments_doc_version_created_idx').on(
+      t.documentId,
+      t.versionNumber,
+      t.createdAt,
+    ),
   ],
 );

@@ -1,0 +1,1 @@
+CREATE INDEX "document_comments_doc_version_created_idx" ON "document_comments" USING btree ("document_id","version_number","created_at");
