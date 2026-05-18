@@ -1,5 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 // Vite: ワーカーを URL として解決し GlobalWorkerOptions に設定する。
 // eslint-disable-next-line import-x/default -- Vite の ?url は文字列を default export する
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -7,11 +7,29 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 // パース済み PDF を URL でキャッシュし、版切替を即時化（ちらつき防止）。
-// 上限超過分は古い「未使用（pin されていない）」ものから destroy する。
+// 上限超過分は古い「未使用（pin されていない）」ものから破棄する。
 // 表示中の PdfViewer が保持する proxy を破棄しないよう pin で保護する。
 const MAX_ENTRIES = 12;
-const cache = new Map<string, Promise<PDFDocumentProxy>>();
+
+/**
+ * loading task と解決 promise を対で保持する。task.destroy() は読み込み中
+ * なら DL/パースを中断し、解決済みなら生成された document も破棄するため、
+ * pending/resolved の双方をこれ 1 つで破棄でき、in-flight 作業も上限で
+ * 律速できる（promise のみ保持だと中断不能）。
+ */
+interface Entry {
+  readonly task: PDFDocumentLoadingTask;
+  readonly promise: Promise<PDFDocumentProxy>;
+}
+
+const cache = new Map<string, Entry>();
 const pins = new Map<string, number>();
+
+function destroyEntry(entry: Entry): void {
+  void entry.task.destroy().catch(() => {
+    /* 破棄失敗は無視（既に破棄済み等） */
+  });
+}
 
 /** マウント中の利用者が保持する URL を保護（破棄対象外にする）。 */
 export function pinPdf(url: string): void {
@@ -34,7 +52,7 @@ export function unpinPdf(url: string): void {
 }
 
 function evictIfNeeded(): void {
-  // 古い順に走査し、pin されていないものだけ destroy する。
+  // 古い順に走査し、pin されていないものだけ破棄する。
   // 全て pin 済みなら一時的に上限超過を許容（利用者解放後に縮む）。
   for (const key of [...cache.keys()]) {
     if (cache.size <= MAX_ENTRIES) {
@@ -45,12 +63,9 @@ function evictIfNeeded(): void {
     }
     const evicted = cache.get(key);
     cache.delete(key);
-    void evicted?.then(
-      (d) => d.destroy(),
-      () => {
-        /* 失敗キャッシュは破棄不要 */
-      },
-    );
+    if (evicted !== undefined) {
+      destroyEntry(evicted);
+    }
   }
 }
 
@@ -67,20 +82,18 @@ export function loadPdf(url: string): Promise<PDFDocumentProxy> {
     // LRU 更新（最近使用を末尾へ）。
     cache.delete(url);
     cache.set(url, cached);
-    return cached;
+    return cached.promise;
   }
-  const promise = pdfjsLib.getDocument({
-    url,
-    withCredentials: true,
-  }).promise;
-  void promise.catch(() => {
-    if (cache.get(url) === promise) {
+  const task = pdfjsLib.getDocument({ url, withCredentials: true });
+  const entry: Entry = { task, promise: task.promise };
+  void entry.promise.catch(() => {
+    if (cache.get(url) === entry) {
       cache.delete(url);
     }
   });
-  cache.set(url, promise);
+  cache.set(url, entry);
   evictIfNeeded();
-  return promise;
+  return entry.promise;
 }
 
 /**
@@ -89,12 +102,7 @@ export function loadPdf(url: string): Promise<PDFDocumentProxy> {
  */
 export function clearPdfCache(): void {
   for (const entry of cache.values()) {
-    void entry.then(
-      (d) => d.destroy(),
-      () => {
-        /* 失敗キャッシュは破棄不要 */
-      },
-    );
+    destroyEntry(entry);
   }
   cache.clear();
   // 認証境界のリセット。表示中ビューアはアンマウント/再読込されるため

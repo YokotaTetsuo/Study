@@ -25,6 +25,9 @@ export function PdfViewer({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
+  // 実際に画面へコミットされた（表示中の）PDF の URL。src とは別管理し、
+  // 切替中も「表示中の URL」を pin し続けて eviction から守る。
+  const [displayedUrl, setDisplayedUrl] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -54,7 +57,8 @@ export function PdfViewer({
     // クロージャ越しの再代入が CFA で追えないため holder で boolean を保つ。
     const token = { cancelled: false };
     setError(false);
-    // 表示中はこの URL の PDF を pin し、eviction で破棄されないよう保護。
+    // 読み込み中の URL を pin（in-flight 保護）。コミットされなければ
+    // cleanup で必ず unpin するためリークしない。
     pinPdf(src);
     // src 変更時に doc を null へ落とさず旧版描画を保持（blank 防止）。
     // page リセットは新 doc 設置と同時に行い、切替中に旧 doc が
@@ -64,6 +68,7 @@ export function PdfViewer({
         if (!token.cancelled) {
           setDoc(pdf);
           setPage(1);
+          setDisplayedUrl(src);
         }
       },
       () => {
@@ -77,6 +82,20 @@ export function PdfViewer({
       unpinPdf(src);
     };
   }, [src]);
+
+  // 表示中（コミット済み）URL の pin。displayedUrl は新 PDF が実際に
+  // setDoc された時のみ更新されるため、この effect の cleanup（旧 URL の
+  // unpin）は「新版がコミットされた後」に走る。これにより切替中も旧版が
+  // pin され続け、eviction で表示中 proxy が破棄されるのを防ぐ。
+  useEffect(() => {
+    if (displayedUrl === null) {
+      return;
+    }
+    pinPdf(displayedUrl);
+    return (): void => {
+      unpinPdf(displayedUrl);
+    };
+  }, [displayedUrl]);
 
   useEffect(() => {
     if (doc === null) {
