@@ -14,7 +14,8 @@
     "typecheck": "tsc -b",
     "build": "tsc -b",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "seed": "tsx --env-file=../.env src/infrastructure/seed.ts"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.10",
