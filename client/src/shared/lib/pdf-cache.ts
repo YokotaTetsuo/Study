@@ -18,11 +18,16 @@ export function pinPdf(url: string): void {
   pins.set(url, (pins.get(url) ?? 0) + 1);
 }
 
-/** pin 解除。0 になったら以後の eviction 対象になる。 */
+/**
+ * pin 解除。0 になったら以後の eviction 対象になる。全 entry が pin 済みで
+ * 上限超過を一時許容していた場合、最後の pin 解放を契機に縮められるよう
+ * その場で eviction を再走させる（次の loadPdf まで超過し続けないように）。
+ */
 export function unpinPdf(url: string): void {
   const n = (pins.get(url) ?? 0) - 1;
   if (n <= 0) {
     pins.delete(url);
+    evictIfNeeded();
   } else {
     pins.set(url, n);
   }
