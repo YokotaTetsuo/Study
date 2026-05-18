@@ -8,9 +8,12 @@ import { RegisterUseCase } from '../../auth/application/register-usecase';
 import { DrizzleDocumentRepository } from '../../document/adapters/gateways/drizzle-document-repository';
 import { S3FileStorage } from '../../document/adapters/gateways/s3-file-storage';
 import { SqlProjectAccess } from '../../document/adapters/gateways/sql-project-access';
+import { AddCommentUseCase } from '../../document/application/add-comment-usecase';
 import { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
+import { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
 import { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
+import { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
 import { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
 import { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { SqlDbConnectivity } from '../../health/adapters/gateways/sql-db-connectivity';
@@ -115,6 +118,14 @@ export function createContainer(env: Env): Container {
         projectAccess,
         fileStorage,
       }),
+      addComment: new AddCommentUseCase({
+        documents,
+        projectAccess,
+        idGenerator,
+        clock,
+      }),
+      listComments: new ListCommentsUseCase({ documents, projectAccess }),
+      deleteComment: new DeleteCommentUseCase({ documents, projectAccess }),
       sessions,
     },
     review: {

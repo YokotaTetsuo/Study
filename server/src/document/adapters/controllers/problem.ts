@@ -5,6 +5,8 @@ import { DomainError } from '../../../shared-kernel/domain-error';
 import { StoredFileMissingError } from '../../../shared-kernel/stored-file-missing-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { UnsupportedContentTypeError } from '../../application/unsupported-content-type-error';
+import { CommentForbiddenError } from '../../domain/comment-forbidden-error';
+import { CommentNotFoundError } from '../../domain/comment-not-found-error';
 import { DocumentNotFoundError } from '../../domain/document-not-found-error';
 import { InvalidDocumentStateError } from '../../domain/invalid-document-state-error';
 import { StaleDocumentError } from '../../domain/stale-document-error';
@@ -27,12 +29,16 @@ function make(
 
 /** document のドメイン/アプリ例外を RFC7807 へマッピングする。 */
 export function toProblem(error: unknown): MappedProblem {
-  if (error instanceof NotAuthorizedError) {
+  if (
+    error instanceof NotAuthorizedError ||
+    error instanceof CommentForbiddenError
+  ) {
     return make(403, 'Forbidden', error.message);
   }
   if (
     error instanceof DocumentNotFoundError ||
-    error instanceof VersionNotFoundError
+    error instanceof VersionNotFoundError ||
+    error instanceof CommentNotFoundError
   ) {
     return make(404, 'Not Found', error.message);
   }

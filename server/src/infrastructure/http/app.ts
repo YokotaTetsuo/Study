@@ -8,9 +8,12 @@ import type { LogoutUseCase } from '../../auth/application/logout-usecase';
 import type { RegisterUseCase } from '../../auth/application/register-usecase';
 import type { SessionStore } from '../../auth/application/session-store';
 import { createDocumentApp } from '../../document/adapters/controllers/document-controller';
+import type { AddCommentUseCase } from '../../document/application/add-comment-usecase';
 import type { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
+import type { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
 import type { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
+import type { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
 import type { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
 import type { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { createHealthApp } from '../../health/adapters/controllers/health-controller';
@@ -57,6 +60,9 @@ interface AppDeps {
     readonly getDocument: GetDocumentUseCase;
     readonly uploadVersion: UploadVersionUseCase;
     readonly getVersionFile: GetVersionFileUseCase;
+    readonly addComment: AddCommentUseCase;
+    readonly listComments: ListCommentsUseCase;
+    readonly deleteComment: DeleteCommentUseCase;
     readonly sessions: SessionStore;
   };
   readonly review: {

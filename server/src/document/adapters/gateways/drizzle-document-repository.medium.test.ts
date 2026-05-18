@@ -3,6 +3,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { DbClient } from '../../../infrastructure/db/client';
 import { makeTestDbClient, truncateDocuments } from '../../__tests__/medium-db';
+import { CommentAuthorId } from '../../domain/comment-author-id';
+import { CommentContent } from '../../domain/comment-content';
+import { CommentId } from '../../domain/comment-id';
 import { Document } from '../../domain/document';
 import { DocumentId } from '../../domain/document-id';
 import { DocumentName } from '../../domain/document-name';
@@ -139,5 +142,70 @@ describe('DrizzleDocumentRepository', () => {
 
     // ステールな b の保存は拒否される（巻き戻し防止）。
     await expect(repo.save(b)).rejects.toThrow(StaleDocumentError);
+  });
+});
+
+const COMMENT_A = '01HQ8ZK9PRSTVWXYZ23456789C';
+const COMMENT_B = '01HQ8ZK9PRSTVWXYZ23456789D';
+
+function docWithVersion(): Document {
+  const doc = aDocument();
+  doc.addVersion({
+    storageKey: new StorageKey(`documents/${DOC_ID}/v1.pdf`),
+    uploadedBy: new UploaderId(USER_ID),
+    createdAt: NOW,
+  });
+  return doc;
+}
+
+describe('DrizzleDocumentRepository comments', () => {
+  it('should round-trip comments per version in chronological order', async () => {
+    const doc = docWithVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(USER_ID),
+      content: new CommentContent('先のコメント'),
+      createdAt: NOW,
+    });
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_B),
+      authorId: new CommentAuthorId(USER_ID),
+      content: new CommentContent('後のコメント'),
+      createdAt: NOW.add(1, 'hour'),
+    });
+    await repo.save(doc);
+
+    const found = await repo.findById(new DocumentId(DOC_ID));
+
+    expect(found?.commentsOf(1).map((c) => c.id.value)).toEqual([
+      COMMENT_A,
+      COMMENT_B,
+    ]);
+    expect(found?.commentsOf(1)[0]?.content.value).toBe('先のコメント');
+  });
+
+  it('should persist a comment deletion on the next save', async () => {
+    const doc = docWithVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(USER_ID),
+      content: new CommentContent('消す対象'),
+      createdAt: NOW,
+    });
+    await repo.save(doc);
+
+    const reloaded = await repo.findById(new DocumentId(DOC_ID));
+    if (reloaded === null) {
+      throw new Error('seeded document not found');
+    }
+    reloaded.deleteComment(
+      1,
+      new CommentId(COMMENT_A),
+      new CommentAuthorId(USER_ID),
+    );
+    await repo.save(reloaded);
+
+    const after = await repo.findById(new DocumentId(DOC_ID));
+    expect(after?.commentsOf(1)).toHaveLength(0);
   });
 });

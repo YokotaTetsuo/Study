@@ -21,6 +21,7 @@ import {
   UploadDropzone,
   useUploadVersion,
 } from '../../../features/upload-version';
+import { CommentThread } from '../../../features/version-comments';
 import {
   computePermissions,
   useVersionWorkflow,
@@ -278,6 +279,14 @@ export function DocumentDetailPage(): ReactElement {
             v{selected} のプレビュー
           </Typography>
           <PdfViewer src={versionFileUrl(documentId, selected)} />
+          <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
+            v{selected} のコメント
+          </Typography>
+          <CommentThread
+            documentId={documentId}
+            versionNumber={selected}
+            currentUserId={me.data?.id}
+          />
         </Box>
       )}
     </>

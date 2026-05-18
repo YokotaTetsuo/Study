@@ -1,20 +1,27 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  addCommentRequestSchema,
+  commentListResponseSchema,
+  commentSchema,
   createDocumentRequestSchema,
   documentResponseSchema,
   problemDetailSchema,
   versionStatusSchema,
 } from '@pdf-review/shared';
-import type { DocumentResponse } from '@pdf-review/shared';
+import type { Comment, DocumentResponse } from '@pdf-review/shared';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { getCookie } from 'hono/cookie';
 
 import type { SessionStore } from '../../../auth/application/session-store';
+import type { AddCommentUseCase } from '../../application/add-comment-usecase';
+import type { CommentResult } from '../../application/comment-result';
 import type { CreateDocumentUseCase } from '../../application/create-document-usecase';
+import type { DeleteCommentUseCase } from '../../application/delete-comment-usecase';
 import type { DocumentResult } from '../../application/document-result';
 import type { GetDocumentUseCase } from '../../application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../application/get-version-file-usecase';
+import type { ListCommentsUseCase } from '../../application/list-comments-usecase';
 import type { ListDocumentsUseCase } from '../../application/list-documents-usecase';
 import type { UploadVersionUseCase } from '../../application/upload-version-usecase';
 
@@ -32,12 +39,28 @@ const UNAUTHORIZED_BODY = {
   detail: '認証が必要です',
 } as const;
 
+const BAD_VERSION_BODY = {
+  type: 'about:blank',
+  title: 'Bad Request',
+  status: 400,
+  detail: 'versionNumber が不正です',
+} as const;
+
+/** パス上の versionNumber を正の整数へ。不正なら null。 */
+function parseVersionNumber(raw: string): number | null {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
+
 interface DocumentDeps {
   readonly createDocument: Pick<CreateDocumentUseCase, 'execute'>;
   readonly listDocuments: Pick<ListDocumentsUseCase, 'execute'>;
   readonly getDocument: Pick<GetDocumentUseCase, 'execute'>;
   readonly uploadVersion: Pick<UploadVersionUseCase, 'execute'>;
   readonly getVersionFile: Pick<GetVersionFileUseCase, 'execute'>;
+  readonly addComment: Pick<AddCommentUseCase, 'execute'>;
+  readonly listComments: Pick<ListCommentsUseCase, 'execute'>;
+  readonly deleteComment: Pick<DeleteCommentUseCase, 'execute'>;
   readonly sessions: SessionStore;
 }
 
@@ -55,6 +78,15 @@ function serialize(result: DocumentResult): DocumentResponse {
       uploadedBy: v.uploadedBy,
       createdAt: v.createdAt.toISOString(),
     })),
+  };
+}
+
+function serializeComment(result: CommentResult): Comment {
+  return {
+    id: result.id,
+    authorId: result.authorId,
+    content: result.content,
+    createdAt: result.createdAt.toISOString(),
   };
 }
 
@@ -174,6 +206,57 @@ const downloadRouteDef = createRoute({
         },
       },
     },
+  },
+});
+const commentContent = {
+  'application/json': { schema: commentSchema },
+};
+const commentListContent = {
+  'application/json': { schema: commentListResponseSchema },
+};
+const versionParam = z.object({
+  documentId: z.string(),
+  versionNumber: z.string(),
+});
+
+const addCommentRouteDef = createRoute({
+  method: 'post',
+  path: '/documents/{documentId}/versions/{versionNumber}/comments',
+  request: {
+    params: versionParam,
+    body: {
+      content: { 'application/json': { schema: addCommentRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    201: { description: 'コメント追加成功' as const, content: commentContent },
+  },
+});
+
+const listCommentsRouteDef = createRoute({
+  method: 'get',
+  path: '/documents/{documentId}/versions/{versionNumber}/comments',
+  request: { params: versionParam },
+  responses: {
+    ...errorResponses,
+    200: { description: 'コメント一覧' as const, content: commentListContent },
+  },
+});
+
+const deleteCommentRouteDef = createRoute({
+  method: 'delete',
+  path: '/documents/{documentId}/versions/{versionNumber}/comments/{commentId}',
+  request: {
+    params: z.object({
+      documentId: z.string(),
+      versionNumber: z.string(),
+      commentId: z.string(),
+    }),
+  },
+  responses: {
+    ...errorResponses,
+    204: { description: '削除成功' as const },
   },
 });
 /* eslint-enable @typescript-eslint/naming-convention */
@@ -323,18 +406,9 @@ export function createDocumentApp(deps: DocumentDeps) {
           return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
         }
         const params = c.req.valid('param');
-        const versionNumber = Number(params.versionNumber);
-        if (!Number.isInteger(versionNumber) || versionNumber < 1) {
-          return c.json(
-            {
-              type: 'about:blank',
-              title: 'Bad Request',
-              status: 400,
-              detail: 'versionNumber が不正です',
-            },
-            400,
-            PROBLEM_HEADERS,
-          );
+        const versionNumber = parseVersionNumber(params.versionNumber);
+        if (versionNumber === null) {
+          return c.json(BAD_VERSION_BODY, 400, PROBLEM_HEADERS);
         }
         const result = await deps.getVersionFile.execute({
           documentId: params.documentId,
@@ -350,6 +424,74 @@ export function createDocumentApp(deps: DocumentDeps) {
           },
         });
         return c.body(stream, 200, PDF_HEADERS);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(addCommentRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const params = c.req.valid('param');
+        const versionNumber = parseVersionNumber(params.versionNumber);
+        if (versionNumber === null) {
+          return c.json(BAD_VERSION_BODY, 400, PROBLEM_HEADERS);
+        }
+        const result = await deps.addComment.execute({
+          documentId: params.documentId,
+          versionNumber,
+          actingUserId,
+          content: c.req.valid('json').content,
+        });
+        return c.json(serializeComment(result), 201);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(listCommentsRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const params = c.req.valid('param');
+        const versionNumber = parseVersionNumber(params.versionNumber);
+        if (versionNumber === null) {
+          return c.json(BAD_VERSION_BODY, 400, PROBLEM_HEADERS);
+        }
+        const results = await deps.listComments.execute({
+          documentId: params.documentId,
+          versionNumber,
+          actingUserId,
+        });
+        return c.json(results.map(serializeComment), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(deleteCommentRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const params = c.req.valid('param');
+        const versionNumber = parseVersionNumber(params.versionNumber);
+        if (versionNumber === null) {
+          return c.json(BAD_VERSION_BODY, 400, PROBLEM_HEADERS);
+        }
+        await deps.deleteComment.execute({
+          documentId: params.documentId,
+          versionNumber,
+          commentId: params.commentId,
+          actingUserId,
+        });
+        return c.body(null, 204);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);
