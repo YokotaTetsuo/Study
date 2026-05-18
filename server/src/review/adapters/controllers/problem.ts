@@ -4,6 +4,7 @@ import { DocumentNotFoundError } from '../../../document/domain/document-not-fou
 import { InvalidDocumentStateError } from '../../../document/domain/invalid-document-state-error';
 import { InvalidVersionTransitionError } from '../../../document/domain/invalid-version-transition-error';
 import { StaleDocumentError } from '../../../document/domain/stale-document-error';
+import { isDbConflict } from '../../../shared-kernel/db-conflict';
 import { DomainError } from '../../../shared-kernel/domain-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { DuplicateApprovalError } from '../../domain/duplicate-approval-error';
@@ -63,17 +64,4 @@ export function toProblem(error: unknown): MappedProblem {
     );
   }
   return make(500, 'Internal Server Error', 'unexpected error');
-}
-
-/**
- * PostgreSQL の競合系エラー:
- * 直列化失敗 (40001) / デッドロック (40P01) / UNIQUE 違反 (23505)。
- */
-function isDbConflict(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('code' in error)) {
-    return false;
-  }
-  return (
-    error.code === '40001' || error.code === '40P01' || error.code === '23505'
-  );
 }
