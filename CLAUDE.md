@@ -41,13 +41,15 @@ pnpm test:medium            # Medium テスト（Docker 必要）
 
 `pnpm dev` を含む全機能には PostgreSQL + S3 互換ストレージが要る。
 サーバは起動時に `ensureBucket`（S3）を待つため **S3 が無いと起動自体
-できない**。`health` ハンドラは DB/S3 を使わないが、サーバ起動には
-S3、それ以外の機能には DB も必須。既定値（`.env.example`）のまま動く。
+できない**。`/health` は `SELECT 1` で DB 到達性を見て `db: up/down`
+を返す（DB が落ちていても `db: down` で応答可能）。S3 は health
+ハンドラ自体では使わない。それ以外の機能には DB も必須。既定値
+（`.env.example`）のまま動く。
 
 ```bash
 cp .env.example .env                      # 既定: DB_PORT=5432 / S3 :9000
-docker compose up -d                      # postgres(:5432) + rustfs(:9000)
-docker compose ps                         # postgres が healthy になるまで待つ
+docker compose up -d --wait               # postgres healthy まで待機して起動
+                                          #   （rustfs は healthcheck 無し）
 curl -s -o /dev/null http://localhost:9000 # rustfs 疎通（CI と同じく -f
                                            #  無し。server 起動時に
                                            #  ensureBucket が走るため）
