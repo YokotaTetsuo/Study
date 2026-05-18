@@ -14,6 +14,7 @@ import { ProjectDocumentsPage } from '../pages/project-documents';
 import { ProjectSettingsPage } from '../pages/project-settings';
 import { ProjectsPage } from '../pages/projects';
 import { RegisterPage } from '../pages/register';
+import { VersionViewerPage } from '../pages/version-viewer';
 import { AppShell } from '../widgets/app-layout';
 
 // 認証画面はヘッダー / パンくず無し。それ以外は共通レイアウト（AppShell）で包む。
@@ -75,6 +76,12 @@ const documentDetailRoute = createRoute({
   component: DocumentDetailPage,
 });
 
+const versionViewerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+  component: VersionViewerPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
@@ -83,6 +90,7 @@ const routeTree = rootRoute.addChildren([
   projectSettingsRoute,
   projectDocumentsRoute,
   documentDetailRoute,
+  versionViewerRoute,
 ]);
 
 export const router = createRouter({ routeTree });

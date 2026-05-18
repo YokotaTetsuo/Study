@@ -47,6 +47,34 @@ describe('buildBreadcrumbTrail', () => {
     ]);
   });
 
+  it('should include version-viewer for the version route', () => {
+    expect(
+      buildBreadcrumbTrail(
+        '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+        {
+          projectId: PROJECT_ID,
+          documentId: DOCUMENT_ID,
+          versionNumber: '2',
+        },
+      ),
+    ).toEqual([
+      { kind: 'home' },
+      { kind: 'projects' },
+      { kind: 'project-documents', projectId: PROJECT_ID },
+      {
+        kind: 'document-detail',
+        projectId: PROJECT_ID,
+        documentId: DOCUMENT_ID,
+      },
+      {
+        kind: 'version-viewer',
+        projectId: PROJECT_ID,
+        documentId: DOCUMENT_ID,
+        versionNumber: '2',
+      },
+    ]);
+  });
+
   it('should branch to settings for the project settings route', () => {
     expect(
       buildBreadcrumbTrail('/projects/$projectId/settings', {
@@ -80,6 +108,7 @@ describe('crumbLabel', () => {
     { kind: 'projects', label: 'プロジェクト' },
     { kind: 'project-documents', label: '文書' },
     { kind: 'document-detail', label: '文書詳細' },
+    { kind: 'version-viewer', label: '版プレビュー' },
     { kind: 'project-settings', label: 'プロジェクト設定' },
   ] as const)('should label $kind as $label', ({ kind, label }) => {
     expect(crumbLabel(kind)).toBe(label);
