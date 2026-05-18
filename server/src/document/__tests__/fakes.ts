@@ -16,6 +16,9 @@ export const PROJECT_ID = '01HQ8ZK9PRSTVWXYZ234567890';
 export const DOCUMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789A';
 export const MEMBER_ID = '01HQ8ZK9PRSTVWXYZ23456789C';
 export const OUTSIDER_ID = '01HQ8ZK9PRSTVWXYZ23456789D';
+// もう 1 人のメンバー（コメント著者以外による削除の検証に使う）。
+export const OTHER_MEMBER_ID = '01HQ8ZK9PRSTVWXYZ23456789E';
+export const COMMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789F';
 
 export const fixedClock: Clock = { now: () => FIXED_NOW };
 
@@ -50,6 +53,12 @@ function cloneDocument(d: Document): Document {
       storageKey: v.storageKey.value,
       uploadedBy: v.uploadedBy.value,
       createdAt: v.createdAt,
+      comments: v.comments.map((c) => ({
+        id: c.id.value,
+        authorId: c.authorId.value,
+        content: c.content.value,
+        createdAt: c.createdAt,
+      })),
     })),
   });
 }

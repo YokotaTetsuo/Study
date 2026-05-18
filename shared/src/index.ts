@@ -39,6 +39,9 @@ export {
   documentVersionSchema,
   documentResponseSchema,
   documentListResponseSchema,
+  commentSchema,
+  addCommentRequestSchema,
+  commentListResponseSchema,
 } from './document';
 export type {
   VersionStatus,
@@ -46,4 +49,7 @@ export type {
   DocumentVersion,
   DocumentResponse,
   DocumentListResponse,
+  Comment,
+  AddCommentRequest,
+  CommentListResponse,
 } from './document';

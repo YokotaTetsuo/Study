@@ -1,6 +1,11 @@
 import dayjs from 'dayjs';
 import { describe, expect, it } from 'vitest';
 
+import { CommentAuthorId } from './comment-author-id';
+import { CommentContent } from './comment-content';
+import { CommentForbiddenError } from './comment-forbidden-error';
+import { CommentId } from './comment-id';
+import { CommentNotFoundError } from './comment-not-found-error';
 import { Document } from './document';
 import { DocumentId } from './document-id';
 import { DocumentName } from './document-name';
@@ -13,7 +18,26 @@ import { UploaderId } from './uploader-id';
 const DOC_ID = '01HQ8ZK9PRSTVWXYZ234567890';
 const PROJ_ID = '01HQ8ZK9PRSTVWXYZ23456789A';
 const USER_ID = '01HQ8ZK9PRSTVWXYZ23456789B';
+const AUTHOR_ID = '01HQ8ZK9PRSTVWXYZ23456789C';
+const OTHER_ID = '01HQ8ZK9PRSTVWXYZ23456789D';
+const COMMENT_A = '01HQ8ZK9PRSTVWXYZ23456789E';
+const COMMENT_B = '01HQ8ZK9PRSTVWXYZ23456789F';
 const NOW = dayjs('2026-05-18T00:00:00.000Z');
+
+function docWithOneVersion(): Document {
+  const doc = Document.create({
+    id: new DocumentId(DOC_ID),
+    projectId: new DocumentProjectId(PROJ_ID),
+    name: new DocumentName('設計書'),
+    createdAt: NOW,
+  });
+  doc.addVersion({
+    storageKey: new StorageKey('documents/d/a.pdf'),
+    uploadedBy: new UploaderId(USER_ID),
+    createdAt: NOW,
+  });
+  return doc;
+}
 
 function newDocument(): Document {
   return Document.create({
@@ -219,5 +243,124 @@ describe('Document version workflow', () => {
         officialVersionNumber: 1,
       }),
     ).toThrow(InvalidDocumentStateError);
+  });
+});
+
+describe('Document comments', () => {
+  it('should add a comment to a version and expose it read-only', () => {
+    const doc = docWithOneVersion();
+
+    const added = doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('  配置を見直してください  '),
+      createdAt: NOW,
+    });
+
+    expect(added.id.value).toBe(COMMENT_A);
+    expect(added.content.value).toBe('配置を見直してください');
+    expect(doc.commentsOf(1)).toHaveLength(1);
+    expect(doc.versions[0]?.comments[0]?.authorId.value).toBe(AUTHOR_ID);
+  });
+
+  it('should reject a comment on a non-existent version', () => {
+    const doc = docWithOneVersion();
+
+    expect(() =>
+      doc.addComment(2, {
+        id: new CommentId(COMMENT_A),
+        authorId: new CommentAuthorId(AUTHOR_ID),
+        content: new CommentContent('x'),
+        createdAt: NOW,
+      }),
+    ).toThrow(InvalidDocumentStateError);
+  });
+
+  it('should let the author delete their own comment', () => {
+    const doc = docWithOneVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('消す対象'),
+      createdAt: NOW,
+    });
+
+    doc.deleteComment(
+      1,
+      new CommentId(COMMENT_A),
+      new CommentAuthorId(AUTHOR_ID),
+    );
+
+    expect(doc.commentsOf(1)).toHaveLength(0);
+  });
+
+  it('should forbid deleting a comment authored by someone else', () => {
+    const doc = docWithOneVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('他人のコメント'),
+      createdAt: NOW,
+    });
+
+    expect(() => {
+      doc.deleteComment(
+        1,
+        new CommentId(COMMENT_A),
+        new CommentAuthorId(OTHER_ID),
+      );
+    }).toThrow(CommentForbiddenError);
+    expect(doc.commentsOf(1)).toHaveLength(1);
+  });
+
+  it('should reject deleting a non-existent comment', () => {
+    const doc = docWithOneVersion();
+
+    expect(() => {
+      doc.deleteComment(
+        1,
+        new CommentId(COMMENT_A),
+        new CommentAuthorId(AUTHOR_ID),
+      );
+    }).toThrow(CommentNotFoundError);
+  });
+
+  it('should expose comments in chronological order after reconstruct', () => {
+    const earlier = NOW;
+    const later = NOW.add(1, 'hour');
+    const doc = Document.reconstruct({
+      id: new DocumentId(DOC_ID),
+      projectId: new DocumentProjectId(PROJ_ID),
+      name: new DocumentName('設計書'),
+      createdAt: NOW,
+      versionsData: [
+        {
+          versionNumber: 1,
+          status: 'draft',
+          storageKey: 'documents/d/a.pdf',
+          uploadedBy: USER_ID,
+          createdAt: NOW,
+          comments: [
+            {
+              id: COMMENT_B,
+              authorId: AUTHOR_ID,
+              content: '後のコメント',
+              createdAt: later,
+            },
+            {
+              id: COMMENT_A,
+              authorId: AUTHOR_ID,
+              content: '先のコメント',
+              createdAt: earlier,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(doc.commentsOf(1).map((c) => c.id.value)).toEqual([
+      COMMENT_A,
+      COMMENT_B,
+    ]);
   });
 });

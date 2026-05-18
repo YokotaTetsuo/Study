@@ -45,3 +45,20 @@ export type DocumentResponse = z.infer<typeof documentResponseSchema>;
 
 export const documentListResponseSchema = z.array(documentResponseSchema);
 export type DocumentListResponse = z.infer<typeof documentListResponseSchema>;
+
+/** 版に紐づくコメント（スレッド表示用）。 */
+export const commentSchema = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  content: z.string().min(1).max(2000),
+  createdAt: z.string().datetime(),
+});
+export type Comment = z.infer<typeof commentSchema>;
+
+export const addCommentRequestSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+export type AddCommentRequest = z.infer<typeof addCommentRequestSchema>;
+
+export const commentListResponseSchema = z.array(commentSchema);
+export type CommentListResponse = z.infer<typeof commentListResponseSchema>;

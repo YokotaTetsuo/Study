@@ -1,5 +1,10 @@
 import type { Dayjs } from 'dayjs';
 
+import { CommentAuthorId } from './comment-author-id';
+import { CommentContent } from './comment-content';
+import { CommentForbiddenError } from './comment-forbidden-error';
+import { CommentId } from './comment-id';
+import { CommentNotFoundError } from './comment-not-found-error';
 import type { DocumentId } from './document-id';
 import type { DocumentName } from './document-name';
 import type { DocumentProjectId } from './document-project-id';
@@ -8,12 +13,83 @@ import { StorageKey } from './storage-key';
 import { UploaderId } from './uploader-id';
 import { VersionStatus } from './version-status';
 
+/**
+ * 版に紐づくコメント（Document 集約の内部エンティティ）。
+ * クラスは export せず、集約ルート経由でのみ生成・削除する
+ * （`server-aggregate-internal-entity.md`）。本文は不変で、編集はしない。
+ */
+class Comment {
+  readonly #id: CommentId;
+  readonly #authorId: CommentAuthorId;
+  readonly #content: CommentContent;
+  readonly #createdAt: Dayjs;
+
+  private constructor(params: {
+    id: CommentId;
+    authorId: CommentAuthorId;
+    content: CommentContent;
+    createdAt: Dayjs;
+  }) {
+    this.#id = params.id;
+    this.#authorId = params.authorId;
+    this.#content = params.content;
+    this.#createdAt = params.createdAt;
+  }
+
+  static create(params: {
+    id: CommentId;
+    authorId: CommentAuthorId;
+    content: CommentContent;
+    createdAt: Dayjs;
+  }): Comment {
+    return new Comment(params);
+  }
+
+  static reconstruct(params: {
+    id: CommentId;
+    authorId: CommentAuthorId;
+    content: CommentContent;
+    createdAt: Dayjs;
+  }): Comment {
+    return new Comment(params);
+  }
+
+  get id(): CommentId {
+    return this.#id;
+  }
+
+  get authorId(): CommentAuthorId {
+    return this.#authorId;
+  }
+
+  get content(): CommentContent {
+    return this.#content;
+  }
+
+  get createdAt(): Dayjs {
+    return this.#createdAt;
+  }
+}
+
+/**
+ * 集約外から内部エンティティ Comment を読み取るビュー型。
+ * mutator を含めず集約境界をコンパイラ強制する。
+ */
+export interface CommentReadonly {
+  readonly id: CommentId;
+  readonly authorId: CommentAuthorId;
+  readonly content: CommentContent;
+  readonly createdAt: Dayjs;
+}
+
 class DocumentVersion {
   readonly #versionNumber: number;
   #status: VersionStatus;
   readonly #storageKey: StorageKey;
   readonly #uploadedBy: UploaderId;
   readonly #createdAt: Dayjs;
+  // 追加順（= createdAt 昇順）で保持する。スレッド表示はこの順。
+  readonly #comments: Comment[];
 
   private constructor(params: {
     versionNumber: number;
@@ -21,12 +97,14 @@ class DocumentVersion {
     storageKey: StorageKey;
     uploadedBy: UploaderId;
     createdAt: Dayjs;
+    comments: Comment[];
   }) {
     this.#versionNumber = params.versionNumber;
     this.#status = params.status;
     this.#storageKey = params.storageKey;
     this.#uploadedBy = params.uploadedBy;
     this.#createdAt = params.createdAt;
+    this.#comments = params.comments;
   }
 
   static create(params: {
@@ -41,6 +119,7 @@ class DocumentVersion {
       storageKey: params.storageKey,
       uploadedBy: params.uploadedBy,
       createdAt: params.createdAt,
+      comments: [],
     });
   }
 
@@ -50,8 +129,31 @@ class DocumentVersion {
     storageKey: StorageKey;
     uploadedBy: UploaderId;
     createdAt: Dayjs;
+    commentsData: readonly {
+      readonly id: string;
+      readonly authorId: string;
+      readonly content: string;
+      readonly createdAt: Dayjs;
+    }[];
   }): DocumentVersion {
-    return new DocumentVersion(params);
+    const comments = [...params.commentsData]
+      .sort((a, b) => a.createdAt.valueOf() - b.createdAt.valueOf())
+      .map((d) =>
+        Comment.reconstruct({
+          id: new CommentId(d.id),
+          authorId: new CommentAuthorId(d.authorId),
+          content: new CommentContent(d.content),
+          createdAt: d.createdAt,
+        }),
+      );
+    return new DocumentVersion({
+      versionNumber: params.versionNumber,
+      status: params.status,
+      storageKey: params.storageKey,
+      uploadedBy: params.uploadedBy,
+      createdAt: params.createdAt,
+      comments,
+    });
   }
 
   get versionNumber(): number {
@@ -95,6 +197,34 @@ class DocumentVersion {
   publish(): void {
     this.#status = this.#status.publish();
   }
+
+  get comments(): readonly CommentReadonly[] {
+    return [...this.#comments];
+  }
+
+  addComment(params: {
+    id: CommentId;
+    authorId: CommentAuthorId;
+    content: CommentContent;
+    createdAt: Dayjs;
+  }): CommentReadonly {
+    const comment = Comment.create(params);
+    this.#comments.push(comment);
+    return comment;
+  }
+
+  /** 著者本人のみ削除可。未存在は NotFound、著者違いは Forbidden。 */
+  deleteComment(commentId: CommentId, requesterId: CommentAuthorId): void {
+    const index = this.#comments.findIndex((c) => c.id.equals(commentId));
+    if (index === -1) {
+      throw new CommentNotFoundError();
+    }
+    const comment = this.#comments[index];
+    if (!comment?.authorId.equals(requesterId)) {
+      throw new CommentForbiddenError();
+    }
+    this.#comments.splice(index, 1);
+  }
 }
 
 /**
@@ -107,6 +237,7 @@ export interface VersionReadonly {
   readonly storageKey: StorageKey;
   readonly uploadedBy: UploaderId;
   readonly createdAt: Dayjs;
+  readonly comments: readonly CommentReadonly[];
 }
 
 /**
@@ -170,6 +301,12 @@ export class Document {
       readonly storageKey: string;
       readonly uploadedBy: string;
       readonly createdAt: Dayjs;
+      readonly comments?: readonly {
+        readonly id: string;
+        readonly authorId: string;
+        readonly content: string;
+        readonly createdAt: Dayjs;
+      }[];
     }[];
     officialVersionNumber?: number | null;
     revision?: number;
@@ -190,6 +327,7 @@ export class Document {
         storageKey: new StorageKey(d.storageKey),
         uploadedBy: new UploaderId(d.uploadedBy),
         createdAt: d.createdAt,
+        commentsData: d.comments ?? [],
       }),
     );
     const officialVersionNumber = params.officialVersionNumber ?? null;
@@ -279,6 +417,33 @@ export class Document {
     const version = this.#requireVersion(versionNumber);
     version.publish();
     this.#officialVersionNumber = versionNumber;
+  }
+
+  /** 版にコメントを追加し、追加されたコメントの読み取りビューを返す。 */
+  addComment(
+    versionNumber: number,
+    params: {
+      id: CommentId;
+      authorId: CommentAuthorId;
+      content: CommentContent;
+      createdAt: Dayjs;
+    },
+  ): CommentReadonly {
+    return this.#requireVersion(versionNumber).addComment(params);
+  }
+
+  /** 版コメントを削除する（著者本人のみ。版/コメント未存在は各エラー）。 */
+  deleteComment(
+    versionNumber: number,
+    commentId: CommentId,
+    requesterId: CommentAuthorId,
+  ): void {
+    this.#requireVersion(versionNumber).deleteComment(commentId, requesterId);
+  }
+
+  /** 版のコメント一覧（追加順）。 */
+  commentsOf(versionNumber: number): readonly CommentReadonly[] {
+    return this.#requireVersion(versionNumber).comments;
   }
 
   get id(): DocumentId {
