@@ -1,7 +1,6 @@
 import { DocumentId } from '../domain/document-id';
 import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import type { DocumentRepository } from '../domain/document-repository';
-import { VersionNotFoundError } from '../domain/version-not-found-error';
 
 import { toCommentResult } from './comment-result';
 import type { CommentResult } from './comment-result';
@@ -44,12 +43,7 @@ export class ListCommentsUseCase {
     ) {
       throw new NotAuthorizedError();
     }
-    // 版未存在の権威的エラーはここ（アプリ境界）の VersionNotFoundError。
-    // get-version-file-usecase と同じ事前チェック慣例（集約の
-    // InvalidDocumentStateError は集約変更の最終ガードであり別責務）。
-    if (document.findVersion(query.versionNumber) === undefined) {
-      throw new VersionNotFoundError();
-    }
+    // 版未存在は集約が VersionNotFoundError を送出する（単一走査）。
     return document.commentsOf(query.versionNumber).map(toCommentResult);
   }
 }
