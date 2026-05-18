@@ -140,4 +140,29 @@ describe('auth controller', () => {
 
     expect(res.status).toBe(204);
   });
+
+  it('should map a DB unique conflict (23505) to 409 problem', async () => {
+    const app = createAuthApp(
+      deps({
+        register: {
+          // 同時登録で email UNIQUE 違反が usecase 経由で表面化するケース。
+          execute: vi.fn().mockRejectedValue({ code: '23505' }),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      jsonReq('/auth/register', {
+        email: 'a@example.com',
+        password: 'password123',
+        displayName: 'Alice',
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(409);
+  });
 });
