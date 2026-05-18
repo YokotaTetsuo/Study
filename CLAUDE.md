@@ -25,7 +25,7 @@
 ```bash
 pnpm install                # 依存インストール（husky も準備される）
 
-pnpm dev                    # server + client 同時起動（Phase 0 PR 0.4 以降）
+pnpm dev                    # server + client 同時起動（要 DB/S3。下記参照）
 pnpm build                  # 全パッケージビルド
 pnpm typecheck              # 全パッケージの型検査
 pnpm lint                   # ESLint
@@ -37,8 +37,37 @@ pnpm test:small             # Small テスト（Docker 不要）
 pnpm test:medium            # Medium テスト（Docker 必要）
 ```
 
-> DB / S3 / マイグレーション（docker compose、`.env.example`、
-> `pnpm --filter server db:migrate` 等）は Phase 0 PR 0.4 以降で導入する。
+### ローカルで動かす（DB / S3 含む全機能）
+
+`pnpm dev` 以外で動かすには PostgreSQL + S3 互換ストレージが要る。
+
+```bash
+cp .env.example .env                      # 既定値のままで動作
+docker compose up -d                      # postgres(:5544) + rustfs(:9000)
+docker compose ps                         # postgres が healthy になるまで待つ
+# マイグレーション適用（0000〜）。db:migrate は .env を読まないため接続情報を明示する
+cd server && DB_HOST=localhost DB_PORT=5544 DB_USER=pdfreview \
+  DB_PASSWORD=pdfreview DB_NAME=pdfreview pnpm exec drizzle-kit migrate && cd ..
+pnpm dev                                  # server :3000 / client :5173
+docker compose down                       # 停止（データは volume に保持）
+```
+
+#### ローカル実行 Tips（ハマりどころ）
+
+- **Docker ランチャーが Rancher Desktop の場合**: `docker info` が失敗するときは
+  daemon が落ちている既定コンテキストを見ている可能性がある。
+  `docker context ls` で `rancher-desktop` が UP なら
+  `docker context use rancher-desktop` に切り替える（Docker Desktop なら
+  `desktop-linux`）。`pnpm test:medium` / Medium テストも同様に有効な
+  コンテキストが必要。
+- **`db:migrate` は `.env` を読まない**: `drizzle-kit migrate` は
+  `--env-file` を介さないため、`.env` の `DB_PORT=5544`（compose は
+  `5544:5432` で公開）と drizzle-kit 既定 `5432` が食い違い接続失敗する。
+  上記のように接続情報を環境変数で明示する。`pnpm --filter server dev`
+  は `--env-file=../.env` 付きなので問題ない。
+- **シード未実装**（`docs/TASKS.md` PR 6.2）。初回 DB は空なので、
+  画面の登録から作る（承認フロー確認用に owner / approver / reviewer の
+  複数アカウント推奨）。
 
 ## モノレポ構成
 
