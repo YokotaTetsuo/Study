@@ -19,7 +19,10 @@ export function formatMiB(bytes: number): string {
 export const MAX_FILE_SIZE_LABEL = formatMiB(MAX_FILE_SIZE_BYTES);
 
 export function validatePdfFile(file: File): FileValidation {
-  if (file.type !== ACCEPTED_MIME) {
+  // サーバの早期ガード（document-controller の trim().toLowerCase() 比較）と
+  // 揃え、大小文字・前後空白の差異で不要に弾かないよう normalize する。
+  const mime = file.type.trim().toLowerCase();
+  if (mime !== ACCEPTED_MIME) {
     return {
       ok: false,
       message: 'PDF ファイル（application/pdf）を選択してください。',
