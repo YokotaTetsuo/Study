@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { Document } from '../../domain/document';
 import { DocumentId } from '../../domain/document-id';
@@ -55,6 +55,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         uploadedBy: v.uploadedBy,
         createdAt: dayjs(v.createdAt),
       })),
+      officialVersionNumber: docRow.officialVersionNumber,
     });
   }
 
@@ -103,6 +104,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
               uploadedBy: v.uploadedBy,
               createdAt: dayjs(v.createdAt),
             })),
+            officialVersionNumber: docRow.officialVersionNumber,
           }),
         );
       },
@@ -116,6 +118,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
       projectId: document.projectId.value,
       name: document.name.value,
       createdAt: document.createdAt.toDate(),
+      officialVersionNumber: document.officialVersionNumber,
     };
     const versionRows = document.versions.map((v) => ({
       documentId: document.id.value,
@@ -132,12 +135,16 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         .values(docRow)
         .onConflictDoUpdate({
           target: documents.id,
-          set: { name: docRow.name },
+          // name と正式版ポインタは更新されうる（publish で official 化）。
+          set: {
+            name: docRow.name,
+            officialVersionNumber: docRow.officialVersionNumber,
+          },
         });
-      // 版はイミュータブルな追記専用。全削除→再 insert は並行アップロード時に
-      // 既存版を破壊しうるため、未登録の版のみを素の insert で追加する。
-      // 同一版番号の競合は複合主キー違反として伝播し、片方の採番が黙って
-      // 失われることを防ぐ。
+      // 版のメタ（storageKey/uploadedBy/createdAt）はイミュータブルだが、
+      // status は状態機械で遷移する。未登録版は素の insert で追加し
+      // （並行アップロード時の採番衝突は複合主キー違反として伝播）、
+      // 既登録版は status のみ UPDATE する。
       const existing = await tx
         .select({ versionNumber: documentVersions.versionNumber })
         .from(documentVersions)
@@ -148,6 +155,20 @@ export class DrizzleDocumentRepository implements DocumentRepository {
       );
       if (toInsert.length > 0) {
         await tx.insert(documentVersions).values(toInsert);
+      }
+      const toUpdate = versionRows.filter((v) =>
+        persisted.has(v.versionNumber),
+      );
+      for (const v of toUpdate) {
+        await tx
+          .update(documentVersions)
+          .set({ status: v.status })
+          .where(
+            and(
+              eq(documentVersions.documentId, document.id.value),
+              eq(documentVersions.versionNumber, v.versionNumber),
+            ),
+          );
       }
     });
   }

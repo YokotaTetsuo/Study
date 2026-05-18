@@ -11,6 +11,8 @@ export const documents = pgTable('documents', {
   projectId: text('project_id').notNull(),
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  // 正式版ポインタ。null=未公開。official 状態の版番号のみが入る。
+  officialVersionNumber: integer('official_version_number'),
 });
 
 export const documentVersions = pgTable(

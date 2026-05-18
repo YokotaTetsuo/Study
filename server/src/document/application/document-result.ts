@@ -14,6 +14,7 @@ export interface DocumentResult {
   readonly projectId: string;
   readonly name: string;
   readonly createdAt: Dayjs;
+  readonly officialVersionNumber: number | null;
   readonly versions: readonly VersionResult[];
 }
 
@@ -23,6 +24,7 @@ export function toDocumentResult(document: Document): DocumentResult {
     projectId: document.projectId.value,
     name: document.name.value,
     createdAt: document.createdAt,
+    officialVersionNumber: document.officialVersionNumber,
     versions: document.versions.map((v) => ({
       versionNumber: v.versionNumber,
       status: v.status.value,

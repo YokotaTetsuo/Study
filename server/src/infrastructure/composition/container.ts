@@ -23,6 +23,12 @@ import { GetProjectUseCase } from '../../project/application/get-project-usecase
 import { ListProjectsUseCase } from '../../project/application/list-projects-usecase';
 import { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
+import { DrizzleReviewRequestRepository } from '../../review/adapters/gateways/drizzle-review-request-repository';
+import { ApproveVersionUseCase } from '../../review/application/approve-version-usecase';
+import { PublishVersionUseCase } from '../../review/application/publish-version-usecase';
+import { RejectVersionUseCase } from '../../review/application/reject-version-usecase';
+import { RequestChangesUseCase } from '../../review/application/request-changes-usecase';
+import { SubmitVersionUseCase } from '../../review/application/submit-version-usecase';
 import { SystemClock } from '../clock/system-clock';
 import { createDbClient } from '../db/client';
 import type { DbClient } from '../db/client';
@@ -64,6 +70,7 @@ export function createContainer(env: Env): Container {
   const s3Client = createS3Client(env);
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   const documents = new DrizzleDocumentRepository(dbClient.db);
+  const reviewRequests = new DrizzleReviewRequestRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
   const ready = ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
 
@@ -108,6 +115,35 @@ export function createContainer(env: Env): Container {
         projectAccess,
         fileStorage,
       }),
+      sessions,
+    },
+    review: {
+      submitVersion: new SubmitVersionUseCase({
+        documents,
+        reviewRequests,
+        projects,
+        idGenerator,
+        clock,
+      }),
+      approveVersion: new ApproveVersionUseCase({
+        documents,
+        reviewRequests,
+        projects,
+        clock,
+      }),
+      requestChanges: new RequestChangesUseCase({
+        documents,
+        reviewRequests,
+        projects,
+        clock,
+      }),
+      rejectVersion: new RejectVersionUseCase({
+        documents,
+        reviewRequests,
+        projects,
+        clock,
+      }),
+      publishVersion: new PublishVersionUseCase({ documents, projects }),
       sessions,
     },
   });

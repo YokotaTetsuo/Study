@@ -23,6 +23,12 @@ import type { ListProjectsUseCase } from '../../project/application/list-project
 import type { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import type { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
 import type { UserDirectory } from '../../project/application/user-directory';
+import { createReviewApp } from '../../review/adapters/controllers/review-controller';
+import type { ApproveVersionUseCase } from '../../review/application/approve-version-usecase';
+import type { PublishVersionUseCase } from '../../review/application/publish-version-usecase';
+import type { RejectVersionUseCase } from '../../review/application/reject-version-usecase';
+import type { RequestChangesUseCase } from '../../review/application/request-changes-usecase';
+import type { SubmitVersionUseCase } from '../../review/application/submit-version-usecase';
 
 interface AppDeps {
   readonly getHealth: GetHealthUseCase;
@@ -53,6 +59,14 @@ interface AppDeps {
     readonly getVersionFile: GetVersionFileUseCase;
     readonly sessions: SessionStore;
   };
+  readonly review: {
+    readonly submitVersion: SubmitVersionUseCase;
+    readonly approveVersion: ApproveVersionUseCase;
+    readonly requestChanges: RequestChangesUseCase;
+    readonly rejectVersion: RejectVersionUseCase;
+    readonly publishVersion: PublishVersionUseCase;
+    readonly sessions: SessionStore;
+  };
 }
 
 /* eslint-disable @typescript-eslint/explicit-function-return-type --
@@ -63,12 +77,14 @@ export function createApp(deps: AppDeps) {
   const auth = createAuthApp(deps.auth);
   const project = createProjectApp(deps.project);
   const document = createDocumentApp(deps.document);
+  const review = createReviewApp(deps.review);
   return new OpenAPIHono()
     .use('*', cors({ origin: deps.corsOrigin, credentials: true }))
     .route('/', health)
     .route('/', auth)
     .route('/', project)
-    .route('/', document);
+    .route('/', document)
+    .route('/', review);
 }
 /* eslint-enable @typescript-eslint/explicit-function-return-type */
 
