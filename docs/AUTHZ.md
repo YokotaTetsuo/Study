@@ -28,14 +28,14 @@ DB 競合）/ `415` / `400` / `500`。
 
 ## project
 
-| メソッド/パス                                | 認証       | 認可                                 | 強制点                                                           |
-| -------------------------------------------- | ---------- | ------------------------------------ | ---------------------------------------------------------------- |
-| GET `/projects`                              | 要ログイン | 参加プロジェクトのみ                 | `ListProjectsUseCase` が `listByMember(actingUserId)` でスコープ |
-| POST `/projects`                             | 要ログイン | 任意の認証ユーザー（作成者が owner） | 設計上メンバー判定不要                                           |
-| GET `/projects/{projectId}`                  | 要ログイン | メンバー                             | usecase でメンバー判定、非メンバーは 403/404                     |
-| POST `/projects/{projectId}/members`         | 要ログイン | **owner のみ**                       | usecase が owner 判定、非 owner は `NotAuthorizedError`→403      |
-| PUT `/projects/{projectId}/members/{userId}` | 要ログイン | **owner のみ**                       | 同上。最後の owner 降格は `LastOwnerError`→409                   |
-| PUT `/projects/{projectId}/approval-policy`  | 要ログイン | **owner のみ**                       | 同上                                                             |
+| メソッド/パス                                | 認証       | 認可                                 | 強制点                                                                   |
+| -------------------------------------------- | ---------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| GET `/projects`                              | 要ログイン | 参加プロジェクトのみ                 | `ListProjectsUseCase` が `listByMember(actingUserId)` でスコープ         |
+| POST `/projects`                             | 要ログイン | 任意の認証ユーザー（作成者が owner） | 設計上メンバー判定不要                                                   |
+| GET `/projects/{projectId}`                  | 要ログイン | メンバー                             | 不在は `ProjectNotFoundError`→404、非メンバーは `NotAuthorizedError`→403 |
+| POST `/projects/{projectId}/members`         | 要ログイン | **owner のみ**                       | usecase が owner 判定、非 owner は `NotAuthorizedError`→403              |
+| PUT `/projects/{projectId}/members/{userId}` | 要ログイン | **owner のみ**                       | 同上。最後の owner 降格は `LastOwnerError`→409                           |
+| PUT `/projects/{projectId}/approval-policy`  | 要ログイン | **owner のみ**                       | 同上                                                                     |
 
 ## document
 
