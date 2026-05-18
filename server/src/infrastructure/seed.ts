@@ -41,9 +41,36 @@ const log = (message: string): void => {
 const PASSWORD = 'password1234';
 const PROJECT_NAME = 'サンプルプロジェクト';
 const DOCUMENT_NAME = '設計仕様書';
-const MINIMAL_PDF = new TextEncoder().encode(
-  '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
-);
+/**
+ * 構造的に妥当な 1 ページ PDF を生成する（Catalog→Pages→Page の木と
+ * 正しい xref バイトオフセット）。pdf.js でそのまま開けるため、シード
+ * 後の README プレビュー/コメント動線が箱から出してすぐ機能する。
+ * 内容は ASCII のみ（文字数=バイト数）でオフセット計算が一致する。
+ */
+function buildMinimalPdf(): Uint8Array {
+  const header = '%PDF-1.4\n';
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\n',
+  ];
+  let body = header;
+  const offsets: number[] = [];
+  for (const obj of objects) {
+    offsets.push(body.length);
+    body += obj;
+  }
+  const xrefStart = body.length;
+  const total = objects.length + 1;
+  let xref = `xref\n0 ${String(total)}\n0000000000 65535 f \n`;
+  for (const offset of offsets) {
+    xref += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  }
+  const trailer = `trailer\n<< /Size ${String(total)} /Root 1 0 R >>\nstartxref\n${String(xrefStart)}\n%%EOF\n`;
+  return new TextEncoder().encode(body + xref + trailer);
+}
+
+const MINIMAL_PDF = buildMinimalPdf();
 
 interface SeedUser {
   readonly email: string;
