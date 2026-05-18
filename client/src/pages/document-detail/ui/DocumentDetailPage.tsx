@@ -120,16 +120,29 @@ export function DocumentDetailPage(): ReactElement {
     }
   }, [versions]);
 
-  // ページ到達時点で全版の PDF を事前読み込みし、版切替を即時化する
-  // （切替時の再フェッチ/再パースによるちらつきを防ぐ）。
+  // 版切替を即時化するため近傍版のみ事前読み込みする。全版一括だと
+  // 版数が多い文書で同時 DL/パースが過多になりキャッシュ上限も超えるため、
+  // 選択中とその前後 2 版＋最新版に限定（選択変更で追従して温める）。
   useEffect(() => {
-    if (versions === undefined) {
+    if (versions === undefined || versions.length === 0) {
       return;
     }
-    for (const v of versions) {
-      prefetchPdf(versionFileUrl(documentId, v.versionNumber));
+    const numbers = versions.map((v) => v.versionNumber);
+    const last = numbers[numbers.length - 1];
+    const center = selected ?? last ?? 1;
+    const window = new Set<number>();
+    for (let n = center - 2; n <= center + 2; n += 1) {
+      window.add(n);
     }
-  }, [versions, documentId]);
+    if (last !== undefined) {
+      window.add(last);
+    }
+    for (const n of numbers) {
+      if (window.has(n)) {
+        prefetchPdf(versionFileUrl(documentId, n));
+      }
+    }
+  }, [versions, documentId, selected]);
 
   if (document.isPending) {
     return <Typography>読み込み中…</Typography>;

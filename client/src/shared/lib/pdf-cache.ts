@@ -57,6 +57,22 @@ export function loadPdf(url: string): Promise<PDFDocumentProxy> {
   return promise;
 }
 
+/**
+ * キャッシュを全消去する。URL のみをキーにしており認証境界を跨いで
+ * 別ユーザーへ流用され得るため、ログイン/ログアウト時に必ず呼ぶ。
+ */
+export function clearPdfCache(): void {
+  for (const entry of cache.values()) {
+    void entry.then(
+      (d) => d.destroy(),
+      () => {
+        /* 失敗キャッシュは破棄不要 */
+      },
+    );
+  }
+  cache.clear();
+}
+
 /** 事前読み込み（結果は捨て、キャッシュだけ温める）。 */
 export function prefetchPdf(url: string): void {
   void loadPdf(url).catch(() => {
