@@ -20,6 +20,7 @@ import { useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
+import { useMe } from '../../../features/auth';
 import {
   useAddMember,
   useProject,
@@ -34,6 +35,7 @@ export function ProjectSettingsPage(): ReactElement {
     from: '/projects/$projectId/settings',
   });
   const project = useProject(projectId);
+  const me = useMe();
   const addMember = useAddMember(projectId);
   const setRole = useSetMemberRole(projectId);
   const updatePolicy = useUpdateApprovalPolicy(projectId);
@@ -60,11 +62,22 @@ export function ProjectSettingsPage(): ReactElement {
 
   const p = project.data;
 
+  // メンバー追加・ロール変更・承認ポリシー更新はサーバー上オーナー専用。
+  // 非オーナーには 403 になる操作を提示せず、無効化＋理由を併記する。
+  const isOwner =
+    p.members.find((m) => m.userId === me.data?.id)?.role === 'owner';
+
   return (
     <>
       <Typography variant="h5" gutterBottom>
         {p.name} の設定
       </Typography>
+
+      {!isOwner && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          メンバーと承認ポリシーの変更はプロジェクトのオーナーのみ可能です。
+        </Alert>
+      )}
 
       <Typography variant="h6" sx={{ mt: 3 }}>
         メンバー
@@ -86,6 +99,7 @@ export function ProjectSettingsPage(): ReactElement {
                 <TextField
                   select
                   size="small"
+                  disabled={!isOwner}
                   value={m.role}
                   onChange={(e) => {
                     setRole.mutate({
@@ -131,6 +145,7 @@ export function ProjectSettingsPage(): ReactElement {
               setEmail(e.target.value);
             }}
             required
+            disabled={!isOwner}
           />
           <TextField
             select
@@ -140,6 +155,7 @@ export function ProjectSettingsPage(): ReactElement {
               setNewRole(projectRoleSchema.parse(e.target.value));
             }}
             sx={{ minWidth: 140 }}
+            disabled={!isOwner}
           >
             {ROLES.map((r) => (
               <MenuItem key={r} value={r}>
@@ -150,7 +166,7 @@ export function ProjectSettingsPage(): ReactElement {
           <Button
             type="submit"
             variant="contained"
-            disabled={addMember.isPending}
+            disabled={!isOwner || addMember.isPending}
           >
             メンバー追加
           </Button>
@@ -185,6 +201,7 @@ export function ProjectSettingsPage(): ReactElement {
               setRequired(Number(e.target.value));
             }}
             slotProps={{ htmlInput: { min: 1 } }}
+            disabled={!isOwner}
           />
           <Box>
             {ROLES.map((r) => (
@@ -192,6 +209,7 @@ export function ProjectSettingsPage(): ReactElement {
                 key={r}
                 control={
                   <Checkbox
+                    disabled={!isOwner}
                     checked={approverRoles.includes(r)}
                     onChange={(e) => {
                       setApproverRoles((prev) =>
@@ -209,7 +227,9 @@ export function ProjectSettingsPage(): ReactElement {
           <Button
             type="submit"
             variant="contained"
-            disabled={updatePolicy.isPending || approverRoles.length === 0}
+            disabled={
+              !isOwner || updatePolicy.isPending || approverRoles.length === 0
+            }
           >
             ポリシー更新
           </Button>
