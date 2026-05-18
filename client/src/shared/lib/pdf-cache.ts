@@ -7,18 +7,39 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 // パース済み PDF を URL でキャッシュし、版切替を即時化（ちらつき防止）。
-// 上限超過分は古いものから destroy する素朴な LRU。
+// 上限超過分は古い「未使用（pin されていない）」ものから destroy する。
+// 表示中の PdfViewer が保持する proxy を破棄しないよう pin で保護する。
 const MAX_ENTRIES = 12;
 const cache = new Map<string, Promise<PDFDocumentProxy>>();
+const pins = new Map<string, number>();
+
+/** マウント中の利用者が保持する URL を保護（破棄対象外にする）。 */
+export function pinPdf(url: string): void {
+  pins.set(url, (pins.get(url) ?? 0) + 1);
+}
+
+/** pin 解除。0 になったら以後の eviction 対象になる。 */
+export function unpinPdf(url: string): void {
+  const n = (pins.get(url) ?? 0) - 1;
+  if (n <= 0) {
+    pins.delete(url);
+  } else {
+    pins.set(url, n);
+  }
+}
 
 function evictIfNeeded(): void {
-  while (cache.size > MAX_ENTRIES) {
-    const oldest = cache.keys().next().value;
-    if (oldest === undefined) {
+  // 古い順に走査し、pin されていないものだけ destroy する。
+  // 全て pin 済みなら一時的に上限超過を許容（利用者解放後に縮む）。
+  for (const key of [...cache.keys()]) {
+    if (cache.size <= MAX_ENTRIES) {
       return;
     }
-    const evicted = cache.get(oldest);
-    cache.delete(oldest);
+    if ((pins.get(key) ?? 0) > 0) {
+      continue;
+    }
+    const evicted = cache.get(key);
+    cache.delete(key);
     void evicted?.then(
       (d) => d.destroy(),
       () => {
@@ -71,6 +92,9 @@ export function clearPdfCache(): void {
     );
   }
   cache.clear();
+  // 認証境界のリセット。表示中ビューアはアンマウント/再読込されるため
+  // pin も含めて全消去する。
+  pins.clear();
 }
 
 /** 事前読み込み（結果は捨て、キャッシュだけ温める）。 */
