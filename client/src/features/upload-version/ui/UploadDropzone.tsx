@@ -105,6 +105,7 @@ export function UploadDropzone({
         variant="outlined"
         role="button"
         tabIndex={pending ? -1 : 0}
+        aria-disabled={pending}
         aria-label="PDF をドラッグ&ドロップ、またはクリックして選択"
         onClick={openPicker}
         onKeyDown={handleKeyDown}

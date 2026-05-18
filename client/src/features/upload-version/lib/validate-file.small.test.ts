@@ -24,6 +24,12 @@ describe('validatePdfFile', () => {
     ).toEqual({ ok: true });
   });
 
+  it('should accept a PDF with case/whitespace variation in the MIME type', () => {
+    expect(
+      validatePdfFile(fileOf({ type: '  APPLICATION/PDF  ', size: 1024 })),
+    ).toEqual({ ok: true });
+  });
+
   it('should reject a non-PDF MIME type', () => {
     const result = validatePdfFile(
       fileOf({ type: 'image/png', size: 1024, name: 'a.png' }),
