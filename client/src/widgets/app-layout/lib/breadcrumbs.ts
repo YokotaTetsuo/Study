@@ -12,6 +12,12 @@ export type Crumb =
       readonly projectId: string;
       readonly documentId: string;
     }
+  | {
+      readonly kind: 'version-viewer';
+      readonly projectId: string;
+      readonly documentId: string;
+      readonly versionNumber: string;
+    }
   | { readonly kind: 'project-settings'; readonly projectId: string };
 
 export function crumbLabel(kind: Crumb['kind']): string {
@@ -24,6 +30,8 @@ export function crumbLabel(kind: Crumb['kind']): string {
       return '文書';
     case 'document-detail':
       return '文書詳細';
+    case 'version-viewer':
+      return '版プレビュー';
     case 'project-settings':
       return 'プロジェクト設定';
     default: {
@@ -44,6 +52,7 @@ export function buildBreadcrumbTrail(
   const home: Crumb = { kind: 'home' };
   const projectId = params.projectId ?? '';
   const documentId = params.documentId ?? '';
+  const versionNumber = params.versionNumber ?? '';
 
   switch (routeId) {
     case '/':
@@ -62,6 +71,14 @@ export function buildBreadcrumbTrail(
         { kind: 'projects' },
         { kind: 'project-documents', projectId },
         { kind: 'document-detail', projectId, documentId },
+      ];
+    case '/projects/$projectId/documents/$documentId/versions/$versionNumber':
+      return [
+        home,
+        { kind: 'projects' },
+        { kind: 'project-documents', projectId },
+        { kind: 'document-detail', projectId, documentId },
+        { kind: 'version-viewer', projectId, documentId, versionNumber },
       ];
     case '/projects/$projectId/settings':
       return [

@@ -66,6 +66,20 @@ function CrumbLink({ crumb }: { crumb: Crumb }): ReactNode {
           {label}
         </Link>
       );
+    case 'version-viewer':
+      return (
+        <Link
+          to="/projects/$projectId/documents/$documentId/versions/$versionNumber"
+          params={{
+            projectId: crumb.projectId,
+            documentId: crumb.documentId,
+            versionNumber: crumb.versionNumber,
+          }}
+          style={paramLinkStyle}
+        >
+          {label}
+        </Link>
+      );
     default: {
       // 網羅性は Crumb の判別共用体で型的に保証される。
       const _exhaustive: never = crumb;
