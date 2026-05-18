@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Container,
   FormControlLabel,
   MenuItem,
   Stack,
@@ -53,24 +52,16 @@ export function ProjectSettingsPage(): ReactElement {
   }, [policy]);
 
   if (project.isPending) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>読み込み中…</Typography>
-      </Container>
-    );
+    return <Typography>読み込み中…</Typography>;
   }
   if (project.isError) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Alert severity="error">プロジェクトを取得できませんでした</Alert>
-      </Container>
-    );
+    return <Alert severity="error">プロジェクトを取得できませんでした</Alert>;
   }
 
   const p = project.data;
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <>
       <Typography variant="h5" gutterBottom>
         {p.name} の設定
       </Typography>
@@ -228,6 +219,6 @@ export function ProjectSettingsPage(): ReactElement {
           </Typography>
         </Stack>
       </Box>
-    </Container>
+    </>
   );
 }

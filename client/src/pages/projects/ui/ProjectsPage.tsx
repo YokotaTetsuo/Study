@@ -2,7 +2,6 @@ import {
   Alert,
   Box,
   Button,
-  Container,
   List,
   Stack,
   TextField,
@@ -20,7 +19,7 @@ export function ProjectsPage(): ReactElement {
   const [name, setName] = useState('');
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <>
       <Typography variant="h5" gutterBottom>
         プロジェクト
       </Typography>
@@ -87,6 +86,6 @@ export function ProjectsPage(): ReactElement {
           ))}
         </List>
       )}
-    </Container>
+    </>
   );
 }

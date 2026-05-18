@@ -83,6 +83,13 @@ export default {
       from: { path: '^client/src/pages/' },
       to: { path: '^client/src/app/' },
     },
+    // widgets は pages/app に依存しない（下位レイヤーのみ参照可）
+    {
+      name: 'fsd-widgets-no-upstream',
+      severity: 'error',
+      from: { path: '^client/src/widgets/' },
+      to: { path: '^client/src/(pages|app)/' },
+    },
     // features 内のクロススライス依存は禁止
     {
       name: 'fsd-no-cross-slice-features',
