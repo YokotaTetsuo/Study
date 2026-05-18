@@ -109,10 +109,6 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
     }));
 
     await this.#withTx(async (tx) => {
-      // ヘッダは初回 insert、以降は status/decided_at が実際に変わった
-      // ときだけ UPDATE する。変化なし（例: 充足前の各 approve）で
-      // 無駄に行を書き換えると、別 approver 同士でもヘッダ行ロックで
-      // 直列化失敗(40001)を誘発するため、それを避ける。
       const current = await tx
         .select({
           status: reviewRequests.status,
@@ -122,9 +118,31 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
         .where(eq(reviewRequests.id, rrRow.id))
         .limit(1);
       const head = current[0];
+
+      // 追記する承認を先に確定させ、approve 経路か終端決定（差戻し/却下）
+      // 経路かを判別する。
+      const existing = await tx
+        .select({ approverId: reviewApprovals.approverId })
+        .from(reviewApprovals)
+        .where(eq(reviewApprovals.reviewRequestId, reviewRequest.id.value));
+      const persisted = new Set(existing.map((r) => r.approverId));
+      const toInsert = approvalRows.filter((a) => !persisted.has(a.approverId));
+      const isApprovePath = toInsert.length > 0 || rrRow.status === 'approved';
+
       if (head === undefined) {
         await tx.insert(reviewRequests).values(rrRow);
+      } else if (isApprovePath) {
+        // approve 経路は充足前でもヘッダを必ず UPDATE して行を更新する。
+        // これにより REPEATABLE READ 下で並行する別 approver の保存は
+        // 直列化失敗(40001)で弾かれ（→ 409 でリトライ）、両者が
+        // 「承認 1 件」のまま確定しない write skew を防ぐ。
+        await tx
+          .update(reviewRequests)
+          .set({ status: rrRow.status, decidedAt: rrRow.decidedAt })
+          .where(eq(reviewRequests.id, rrRow.id));
       } else {
+        // 終端決定（差戻し/却下）は承認蓄積を伴わないため、status/
+        // decided_at が実際に変わるときだけ UPDATE する。
         const decidedChanged =
           (head.decidedAt === null ? null : head.decidedAt.getTime()) !==
           (rrRow.decidedAt === null ? null : rrRow.decidedAt.getTime());
@@ -135,13 +153,7 @@ export class DrizzleReviewRequestRepository implements ReviewRequestRepository {
             .where(eq(reviewRequests.id, rrRow.id));
         }
       }
-      // 承認は追記専用。既登録の承認者ぶんを除いて素の insert で追加する。
-      const existing = await tx
-        .select({ approverId: reviewApprovals.approverId })
-        .from(reviewApprovals)
-        .where(eq(reviewApprovals.reviewRequestId, reviewRequest.id.value));
-      const persisted = new Set(existing.map((r) => r.approverId));
-      const toInsert = approvalRows.filter((a) => !persisted.has(a.approverId));
+
       if (toInsert.length > 0) {
         try {
           await tx.insert(reviewApprovals).values(toInsert);
