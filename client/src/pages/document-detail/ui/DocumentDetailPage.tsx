@@ -14,12 +14,15 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
+import { useMe } from '../../../features/auth';
 import { useDocument } from '../../../features/document';
+import { useProject } from '../../../features/project';
 import {
   UploadDropzone,
   useUploadVersion,
 } from '../../../features/upload-version';
 import {
+  computePermissions,
   useVersionWorkflow,
   VersionActions,
   VersionStatusBadge,
@@ -27,13 +30,35 @@ import {
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
 export function DocumentDetailPage(): ReactElement {
-  const { documentId } = useParams({
+  const { projectId, documentId } = useParams({
     from: '/projects/$projectId/documents/$documentId',
   });
   const document = useDocument(documentId);
+  const project = useProject(projectId);
+  const me = useMe();
   const upload = useUploadVersion(documentId);
   const workflow = useVersionWorkflow(documentId);
   const [selected, setSelected] = useState<number | null>(null);
+
+  // 現在ユーザーのプロジェクト内ロールと承認ポリシーから、提示してよい
+  // 操作を導く（403 になるボタンを出さない）。未取得時は全操作不可。
+  const myRole = project.data?.members.find(
+    (m) => m.userId === me.data?.id,
+  )?.role;
+  const permissions = computePermissions(
+    myRole,
+    project.data?.approvalPolicy.approverRoles ?? [],
+  );
+
+  // 新しい操作の前に直前の sticky な成功/失敗をクリアし、エラー表示が
+  // 最新操作のみを反映するようにする。
+  const runAction = (
+    mutation: { mutate: (n: number) => void },
+    versionNumber: number,
+  ): void => {
+    workflow.reset();
+    mutation.mutate(versionNumber);
+  };
 
   const workflowPending = [
     workflow.submit,
@@ -138,20 +163,21 @@ export function DocumentDetailPage(): ReactElement {
                   <VersionActions
                     status={v.status}
                     pending={workflowPending}
+                    permissions={permissions}
                     onSubmit={() => {
-                      workflow.submit.mutate(v.versionNumber);
+                      runAction(workflow.submit, v.versionNumber);
                     }}
                     onApprove={() => {
-                      workflow.approve.mutate(v.versionNumber);
+                      runAction(workflow.approve, v.versionNumber);
                     }}
                     onRequestChanges={() => {
-                      workflow.requestChanges.mutate(v.versionNumber);
+                      runAction(workflow.requestChanges, v.versionNumber);
                     }}
                     onReject={() => {
-                      workflow.reject.mutate(v.versionNumber);
+                      runAction(workflow.reject, v.versionNumber);
                     }}
                     onPublish={() => {
-                      workflow.publish.mutate(v.versionNumber);
+                      runAction(workflow.publish, v.versionNumber);
                     }}
                   />
                 </TableCell>
