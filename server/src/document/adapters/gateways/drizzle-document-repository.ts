@@ -91,6 +91,9 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           .orderBy(
             asc(documentComments.versionNumber),
             asc(documentComments.createdAt),
+            // 同一 created_at でも順序を決定的にする（id=ULID で
+            // 挿入順に整列）。ドメインの「同時刻は挿入順」と整合。
+            asc(documentComments.id),
           );
         return { docRow, versionRows, commentRows };
       },
@@ -151,27 +154,11 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           list.push(v);
           versionsByDoc.set(v.documentId, list);
         }
-        // コメントも全文書ぶんを 1 クエリで取得し N+1 を避ける。
-        const commentRows = await tx
-          .select()
-          .from(documentComments)
-          .where(inArray(documentComments.documentId, ids))
-          .orderBy(
-            asc(documentComments.documentId),
-            asc(documentComments.versionNumber),
-            asc(documentComments.createdAt),
-          );
-        const commentsByDoc = new Map<string, typeof commentRows>();
-        for (const c of commentRows) {
-          const list = commentsByDoc.get(c.documentId) ?? [];
-          list.push(c);
-          commentsByDoc.set(c.documentId, list);
-        }
-        return docRows.map((docRow) => {
-          const byVersion = commentsByVersion(
-            commentsByDoc.get(docRow.id) ?? [],
-          );
-          return Document.reconstruct({
+        // 一覧はコメントを返さない（DocumentResult に無い）。プロジェクト
+        // 内全コメントの読み込みは無駄な I/O なので取得しない。コメントは
+        // findById（単一文書）でのみロードする。
+        return docRows.map((docRow) =>
+          Document.reconstruct({
             id: new DocumentId(docRow.id),
             projectId: new DocumentProjectId(docRow.projectId),
             name: new DocumentName(docRow.name),
@@ -182,12 +169,11 @@ export class DrizzleDocumentRepository implements DocumentRepository {
               storageKey: v.storageKey,
               uploadedBy: v.uploadedBy,
               createdAt: dayjs(v.createdAt),
-              comments: byVersion.get(v.versionNumber) ?? [],
             })),
             officialVersionNumber: docRow.officialVersionNumber,
             revision: docRow.revision,
-          });
-        });
+          }),
+        );
       },
       { isolationLevel: 'repeatable read' },
     );
