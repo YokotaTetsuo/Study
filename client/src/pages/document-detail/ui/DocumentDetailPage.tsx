@@ -34,7 +34,10 @@ export function DocumentDetailPage(): ReactElement {
     from: '/projects/$projectId/documents/$documentId',
   });
   const document = useDocument(documentId);
-  const project = useProject(projectId);
+  // 権限は URL の projectId ではなく、読み込んだ文書の実 projectId で
+  // 判定する（不一致なディープリンクで誤った権限表示にならないように）。
+  // 文書未取得の間は URL の projectId をフォールバックに使う。
+  const project = useProject(document.data?.projectId ?? projectId);
   const me = useMe();
   const upload = useUploadVersion(documentId);
   const workflow = useVersionWorkflow(documentId);
