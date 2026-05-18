@@ -24,8 +24,10 @@ export class DrizzleTransactor implements Transactor {
     return this.#db.transaction(
       (tx) =>
         work({
-          documents: new DrizzleDocumentRepository(tx),
-          reviewRequests: new DrizzleReviewRequestRepository(tx),
+          // inTx=true: 既に tx 境界内なので各リポジトリは
+          // transaction を張らず同一 tx 上で実行する。
+          documents: new DrizzleDocumentRepository(tx, true),
+          reviewRequests: new DrizzleReviewRequestRepository(tx, true),
         }),
       { isolationLevel: 'repeatable read' },
     );
