@@ -18,7 +18,12 @@ DB 競合）/ `415` / `400` / `500`。
 | POST `/auth/login`    | 公開       | なし           | 資格情報不正は 401         |
 | POST `/auth/logout`   | 要ログイン | 本人セッション | セッション破棄             |
 | GET `/auth/me`        | 要ログイン | 本人           | `UnauthenticatedError`→401 |
-| GET `/health`         | 公開       | なし           | —                          |
+
+## health
+
+| メソッド/パス | 認証 | 認可 | 強制点 |
+| ------------- | ---- | ---- | ------ |
+| GET `/health` | 公開 | なし | —      |
 
 ## project
 
