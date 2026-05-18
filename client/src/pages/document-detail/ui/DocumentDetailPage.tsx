@@ -2,7 +2,6 @@ import {
   Alert,
   Box,
   Button,
-  Container,
   Stack,
   Table,
   TableBody,
@@ -39,24 +38,16 @@ export function DocumentDetailPage(): ReactElement {
   }, [versions]);
 
   if (document.isPending) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Typography>読み込み中…</Typography>
-      </Container>
-    );
+    return <Typography>読み込み中…</Typography>;
   }
   if (document.isError) {
-    return (
-      <Container sx={{ py: 4 }}>
-        <Alert severity="error">文書を取得できませんでした</Alert>
-      </Container>
-    );
+    return <Alert severity="error">文書を取得できませんでした</Alert>;
   }
 
   const d = document.data;
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <>
       <Typography variant="h5" gutterBottom>
         {d.name}
       </Typography>
@@ -155,6 +146,6 @@ export function DocumentDetailPage(): ReactElement {
           <PdfViewer src={versionFileUrl(documentId, selected)} />
         </Box>
       )}
-    </Container>
+    </>
   );
 }
