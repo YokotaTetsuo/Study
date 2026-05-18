@@ -34,8 +34,7 @@ export function RegisterPage(): ReactElement {
         onSubmit={(values) => {
           register.mutate(values, {
             onSuccess: () => {
-              // 認証画面を履歴に残さない（戻るボタンで /register に戻れない）。
-              void navigate({ to: '/', replace: true });
+              void navigate({ to: '/' });
             },
           });
         }}
