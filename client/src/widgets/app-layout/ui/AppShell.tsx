@@ -74,6 +74,9 @@ export function AppShell(): ReactElement {
   if (params.documentId !== undefined) {
     trailParams.documentId = params.documentId;
   }
+  if (params.versionNumber !== undefined) {
+    trailParams.versionNumber = params.versionNumber;
+  }
   const trail = buildBreadcrumbTrail(leafRouteId, trailParams);
   // 版プレビュー専用ページは PDF を主役にするため幅制約を外す。
   const wide =
