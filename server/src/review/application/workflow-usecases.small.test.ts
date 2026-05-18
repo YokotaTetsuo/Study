@@ -210,6 +210,18 @@ describe('RequestChangesUseCase', () => {
 
     expect(result.versions[0]?.status).toBe('changes_requested');
   });
+
+  it('should reject a non-reviewer/owner role', async () => {
+    await submit();
+
+    await expect(
+      new RequestChangesUseCase(makeDeps()).execute({
+        documentId: DOC_ID,
+        versionNumber: 1,
+        actingUserId: APPROVER_ID,
+      }),
+    ).rejects.toThrow(NotAuthorizedError);
+  });
 });
 
 describe('RejectVersionUseCase', () => {
@@ -223,6 +235,18 @@ describe('RejectVersionUseCase', () => {
     });
 
     expect(result.versions[0]?.status).toBe('rejected');
+  });
+
+  it('should reject a non-reviewer/owner role', async () => {
+    await submit();
+
+    await expect(
+      new RejectVersionUseCase(makeDeps()).execute({
+        documentId: DOC_ID,
+        versionNumber: 1,
+        actingUserId: APPROVER_ID,
+      }),
+    ).rejects.toThrow(NotAuthorizedError);
   });
 });
 

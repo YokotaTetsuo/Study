@@ -6,7 +6,7 @@ import type { ProjectRepository } from '../../project/domain/project-repository'
 import type { Clock } from '../../shared-kernel/clock';
 import { ReviewRequestNotFoundError } from '../domain/review-request-not-found-error';
 
-import { resolveProjectContext } from './project-context';
+import { assertCanReview, resolveProjectContext } from './project-context';
 import type { Transactor } from './unit-of-work';
 
 export interface RejectVersionCommand {
@@ -51,11 +51,12 @@ export class RejectVersionUseCase {
       if (reviewRequest === null) {
         throw new ReviewRequestNotFoundError();
       }
-      await resolveProjectContext(
+      const ctx = await resolveProjectContext(
         this.#projects,
         document.projectId.value,
         command.actingUserId,
       );
+      assertCanReview(ctx);
       reviewRequest.reject(this.#clock.now());
       document.rejectVersion(command.versionNumber);
       await reviewRequests.save(reviewRequest);

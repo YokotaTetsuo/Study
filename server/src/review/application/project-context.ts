@@ -13,6 +13,16 @@ export interface ProjectContext {
 }
 
 /**
+ * 差戻し / 却下を許可するロールか検証する。
+ * レビュー判断はレビュアー、または管理者である owner に限定する。
+ */
+export function assertCanReview(ctx: ProjectContext): void {
+  if (!ctx.isOwner && ctx.role.value !== 'reviewer') {
+    throw new NotAuthorizedError();
+  }
+}
+
+/**
  * ワークフロー usecase 共通: 対象文書のプロジェクトにおける acting user の
  * ロールと承認ポリシーを解決する。メンバーでなければ NotAuthorizedError。
  */
