@@ -209,7 +209,18 @@ class DocumentVersion {
     createdAt: Dayjs;
   }): CommentReadonly {
     const comment = Comment.create(params);
-    this.#comments.push(comment);
+    // createdAt 昇順を不変条件として保持する。呼び出し側クロックの
+    // 単調性に依存せず、最初に「より新しい」要素の手前へ挿入する
+    // （同時刻は既存の後 = 挿入順を保ち、安定ソートする reconstruct と
+    // ラウンドトリップ後も順序が一致する）。
+    const at = this.#comments.findIndex(
+      (c) => c.createdAt.valueOf() > params.createdAt.valueOf(),
+    );
+    if (at === -1) {
+      this.#comments.push(comment);
+    } else {
+      this.#comments.splice(at, 0, comment);
+    }
     return comment;
   }
 

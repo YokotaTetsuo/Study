@@ -56,6 +56,10 @@ export class AddCommentUseCase {
     ) {
       throw new NotAuthorizedError();
     }
+    // 版未存在の権威的エラーはここ（アプリ境界）の VersionNotFoundError。
+    // 集約の #requireVersion も InvalidDocumentStateError で防御するが、
+    // それは集約変更の最終ガード。get-version-file-usecase と同じ
+    // 事前チェック慣例に揃え、HTTP には常に 404 系を返す。
     if (document.findVersion(command.versionNumber) === undefined) {
       throw new VersionNotFoundError();
     }
