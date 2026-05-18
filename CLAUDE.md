@@ -50,9 +50,9 @@ pnpm test:medium            # Medium テスト（Docker 必要）
 cp .env.example .env                      # 既定: DB_PORT=5432 / S3 :9000
 docker compose up -d --wait               # postgres healthy まで待機して起動
                                           #   （rustfs は healthcheck 無し）
-curl -s -o /dev/null http://localhost:9000 # rustfs 疎通（CI と同じく -f
-                                           #  無し。server 起動時に
-                                           #  ensureBucket が走るため）
+# rustfs は healthcheck 無しで --wait 対象外。CI と同じくリトライで疎通待ち
+# （server 起動時に ensureBucket が走るため）
+until curl -s -o /dev/null http://localhost:9000; do sleep 2; done
 pnpm --filter @pdf-review/server db:migrate  # マイグレーション適用（0000〜）
 pnpm dev                                  # server :3000 / client :5173
 docker compose down                       # 停止（データは volume に保持）
