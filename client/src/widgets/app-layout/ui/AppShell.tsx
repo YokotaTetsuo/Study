@@ -23,6 +23,7 @@ import { isApiError } from '../../../shared/api/api-error';
 import { buildBreadcrumbTrail } from '../lib/breadcrumbs';
 
 import { AppBreadcrumbs } from './AppBreadcrumbs';
+import { BackButton } from './BackButton';
 
 /**
  * 認証済みページ共通のレイアウト。グローバルヘッダー（タイトル / ログイン中ユーザー /
@@ -115,7 +116,8 @@ export function AppShell(): ReactElement {
         </Toolbar>
       </AppBar>
       <Container maxWidth={wide ? false : 'md'} sx={{ py: 3 }}>
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <BackButton />
           <AppBreadcrumbs trail={trail} />
         </Box>
         <Outlet />
