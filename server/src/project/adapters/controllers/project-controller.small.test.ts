@@ -211,6 +211,31 @@ describe('project controller', () => {
     expect(problemDetailSchema.parse(await res.json()).status).toBe(404);
   });
 
+  it('should map a DB unique conflict (23505) to 409 problem', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      addMember: {
+        // 同時メンバー追加で project_members の UNIQUE 違反が表面化。
+        execute: vi.fn().mockRejectedValue({ code: '23505' }),
+      },
+    });
+
+    const res = await app.request(
+      postJson(
+        `/projects/${RESULT.id}/members`,
+        { email: 'owner@example.com', role: 'reviewer' },
+        'sid=abc',
+      ),
+    );
+
+    expect(res.status).toBe(409);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(409);
+  });
+
   it('should return 401 for member endpoints without a session', async () => {
     const app = createProjectApp(deps(anonSessions));
 
