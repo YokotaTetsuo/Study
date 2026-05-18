@@ -14,9 +14,10 @@ export function VersionViewerPage(): ReactElement {
   const { documentId, versionNumber } = useParams({
     from: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
   });
+  // 先頭ゼロや 1e0 等の係数変換を弾き、正の安全整数のみ受け付ける。
+  const isCanonical = /^[1-9][0-9]*$/.test(versionNumber);
   const parsed = Number(versionNumber);
-
-  if (!Number.isInteger(parsed) || parsed < 1) {
+  if (!isCanonical || !Number.isSafeInteger(parsed)) {
     return <Alert severity="error">版番号が不正です</Alert>;
   }
 
@@ -27,7 +28,7 @@ export function VersionViewerPage(): ReactElement {
       </Typography>
       {/* PDF を主役に最大表示。将来ここにアノテーション層を重ねる。 */}
       <Box sx={{ width: '100%' }}>
-        <PdfViewer src={versionFileUrl(documentId, parsed)} />
+        <PdfViewer src={versionFileUrl(documentId, parsed)} fitToWidth />
       </Box>
     </Box>
   );

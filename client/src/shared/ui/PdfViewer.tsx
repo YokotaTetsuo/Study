@@ -12,13 +12,45 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 interface PdfViewerProps {
   /** Cookie 認証付きで取得する PDF の URL。 */
   readonly src: string;
+  /**
+   * true のとき、コンテナ幅にフィットさせて描画する（専用ビューア用）。
+   * 既定（false）は従来の固定スケール。埋め込みプレビューの見た目を
+   * 変えないため opt-in。
+   */
+  readonly fitToWidth?: boolean;
 }
 
-export function PdfViewer({ src }: PdfViewerProps): ReactElement {
+const FIXED_SCALE = 1.3;
+
+export function PdfViewer({
+  src,
+  fitToWidth = false,
+}: PdfViewerProps): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (!fitToWidth) {
+      return;
+    }
+    const el = containerRef.current;
+    if (el === null) {
+      return;
+    }
+    const update = (): void => {
+      setContainerWidth(el.clientWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return (): void => {
+      ro.disconnect();
+    };
+  }, [fitToWidth]);
 
   useEffect(() => {
     // クロージャ越しの再代入が CFA で追えないため holder で boolean を保つ。
@@ -72,7 +104,13 @@ export function PdfViewer({ src }: PdfViewerProps): ReactElement {
         if (context === null) {
           return;
         }
-        const viewport = pdfPage.getViewport({ scale: 1.3 });
+        // fitToWidth 時はコンテナ幅から倍率を算出（既定は固定倍率）。
+        let scale = FIXED_SCALE;
+        if (fitToWidth && containerWidth > 0) {
+          const base = pdfPage.getViewport({ scale: 1 });
+          scale = containerWidth / base.width;
+        }
+        const viewport = pdfPage.getViewport({ scale });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         renderTask = pdfPage.render({ canvasContext: context, viewport });
@@ -94,7 +132,7 @@ export function PdfViewer({ src }: PdfViewerProps): ReactElement {
         renderTask.cancel();
       }
     };
-  }, [doc, page]);
+  }, [doc, page, fitToWidth, containerWidth]);
 
   if (error) {
     return <Alert severity="error">PDF を読み込めませんでした</Alert>;
@@ -131,7 +169,13 @@ export function PdfViewer({ src }: PdfViewerProps): ReactElement {
         </Button>
       </Stack>
       <Box
-        sx={{ border: '1px solid', borderColor: 'divider', maxWidth: '100%' }}
+        ref={containerRef}
+        sx={{
+          border: '1px solid',
+          borderColor: 'divider',
+          maxWidth: '100%',
+          width: fitToWidth ? '100%' : undefined,
+        }}
       >
         <canvas
           ref={canvasRef}
