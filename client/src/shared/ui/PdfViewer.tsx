@@ -3,7 +3,7 @@ import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { loadPdf } from '../lib/pdf-cache';
+import { loadPdf, pinPdf, unpinPdf } from '../lib/pdf-cache';
 
 interface PdfViewerProps {
   /** Cookie 認証付きで取得する PDF の URL。 */
@@ -54,14 +54,16 @@ export function PdfViewer({
     // クロージャ越しの再代入が CFA で追えないため holder で boolean を保つ。
     const token = { cancelled: false };
     setError(false);
-    setPage(1);
-    // src 変更時に doc を null へ落とさない（= 旧版の描画を保持したまま
-    // 新版を読み込む）ことで、版切替の blank ちらつきを防ぐ。
-    // PDF はキャッシュ所有なので destroy しない。
+    // 表示中はこの URL の PDF を pin し、eviction で破棄されないよう保護。
+    pinPdf(src);
+    // src 変更時に doc を null へ落とさず旧版描画を保持（blank 防止）。
+    // page リセットは新 doc 設置と同時に行い、切替中に旧 doc が
+    // ページ 1 へ飛ぶのを防ぐ。PDF はキャッシュ所有なので destroy しない。
     loadPdf(src).then(
       (pdf) => {
         if (!token.cancelled) {
           setDoc(pdf);
+          setPage(1);
         }
       },
       () => {
@@ -72,6 +74,7 @@ export function PdfViewer({
     );
     return (): void => {
       token.cancelled = true;
+      unpinPdf(src);
     };
   }, [src]);
 
