@@ -14,7 +14,7 @@ export function VersionViewerPage(): ReactElement {
   const { documentId, versionNumber } = useParams({
     from: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
   });
-  // 先頭ゼロや 1e0 等の係数変換を弾き、正の安全整数のみ受け付ける。
+  // 先頭ゼロや 1e0 等の指数表記を弾き、正の安全整数のみ受け付ける。
   const isCanonical = /^[1-9][0-9]*$/.test(versionNumber);
   const parsed = Number(versionNumber);
   if (!isCanonical || !Number.isSafeInteger(parsed)) {

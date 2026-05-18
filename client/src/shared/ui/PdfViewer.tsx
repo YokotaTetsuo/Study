@@ -50,7 +50,9 @@ export function PdfViewer({
     return (): void => {
       ro.disconnect();
     };
-  }, [fitToWidth]);
+    // doc/error も依存に含める。コンテナ Box はロード完了後に初めて
+    // 描画されるため、その時点で再実行して ResizeObserver を張る。
+  }, [fitToWidth, doc, error]);
 
   useEffect(() => {
     // クロージャ越しの再代入が CFA で追えないため holder で boolean を保つ。
