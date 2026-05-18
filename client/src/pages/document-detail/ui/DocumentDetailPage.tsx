@@ -66,6 +66,9 @@ export function DocumentDetailPage(): ReactElement {
         pending={upload.isPending}
         succeeded={upload.isSuccess}
         failed={upload.isError}
+        onResetStatus={() => {
+          upload.reset();
+        }}
       />
 
       <Typography variant="h6" sx={{ mt: 2 }}>

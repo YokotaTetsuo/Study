@@ -8,15 +8,24 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import type { DragEvent, ReactElement } from 'react';
+import type { DragEvent, KeyboardEvent, ReactElement } from 'react';
 
-import { validatePdfFile } from '../lib/validate-file';
+import {
+  ACCEPTED_MIME,
+  MAX_FILE_SIZE_LABEL,
+  validatePdfFile,
+} from '../lib/validate-file';
 
 interface Props {
   readonly onUpload: (file: File) => void;
   readonly pending: boolean;
   readonly succeeded: boolean;
   readonly failed: boolean;
+  /**
+   * 直近のアップロード結果（成功/失敗）をクリアするための導線。
+   * 新しいファイル選択・選び直し時に呼び、状態の残留を防ぐ。
+   */
+  readonly onResetStatus: () => void;
 }
 
 function formatSize(bytes: number): string {
@@ -35,6 +44,7 @@ export function UploadDropzone({
   pending,
   succeeded,
   failed,
+  onResetStatus,
 }: Props): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -51,6 +61,8 @@ export function UploadDropzone({
 
   function selectFile(picked: File | undefined): void {
     if (picked === undefined) return;
+    // 前回の成功/失敗ステータスをクリアし、ボタン文言・Alert の残留を防ぐ。
+    onResetStatus();
     const result = validatePdfFile(picked);
     if (!result.ok) {
       setFile(null);
@@ -61,11 +73,28 @@ export function UploadDropzone({
     setFile(picked);
   }
 
+  function openPicker(): void {
+    if (!pending) inputRef.current?.click();
+  }
+
   function handleDrop(e: DragEvent<HTMLDivElement>): void {
     e.preventDefault();
     setDragActive(false);
     if (pending) return;
     selectFile(e.dataTransfer.files[0]);
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openPicker();
+    }
+  }
+
+  function clearSelection(): void {
+    setFile(null);
+    setValidationError(null);
+    onResetStatus();
   }
 
   const canUpload = file !== null && !pending;
@@ -74,9 +103,11 @@ export function UploadDropzone({
     <Box sx={{ mb: 3 }}>
       <Paper
         variant="outlined"
-        onClick={() => {
-          if (!pending) inputRef.current?.click();
-        }}
+        role="button"
+        tabIndex={pending ? -1 : 0}
+        aria-label="PDF をドラッグ&ドロップ、またはクリックして選択"
+        onClick={openPicker}
+        onKeyDown={handleKeyDown}
         onDragOver={(e) => {
           e.preventDefault();
           if (!pending) setDragActive(true);
@@ -98,7 +129,7 @@ export function UploadDropzone({
           ref={inputRef}
           hidden
           type="file"
-          accept="application/pdf"
+          accept={ACCEPTED_MIME}
           onChange={(e) => {
             selectFile(e.target.files?.[0]);
             // 同一ファイルの再選択でも onChange が発火するよう値をクリア。
@@ -109,7 +140,7 @@ export function UploadDropzone({
           PDF をドラッグ&ドロップ、またはクリックして選択
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          application/pdf / 最大 50 MiB
+          {ACCEPTED_MIME} / 最大 {MAX_FILE_SIZE_LABEL}
         </Typography>
       </Paper>
 
@@ -118,13 +149,7 @@ export function UploadDropzone({
           <Typography sx={{ flexGrow: 1 }}>
             選択中: {file.name}（{formatSize(file.size)}）
           </Typography>
-          <Button
-            disabled={pending}
-            onClick={() => {
-              setFile(null);
-              setValidationError(null);
-            }}
-          >
+          <Button disabled={pending} onClick={clearSelection}>
             選び直す
           </Button>
           <Button
@@ -162,7 +187,8 @@ export function UploadDropzone({
 
       {failed && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          アップロードに失敗しました。対応形式は PDF のみ・最大 50 MiB
+          アップロードに失敗しました。対応形式は {ACCEPTED_MIME} のみ・最大{' '}
+          {MAX_FILE_SIZE_LABEL}{' '}
           です。権限・通信状況もご確認のうえ「再試行」してください。
         </Alert>
       )}
