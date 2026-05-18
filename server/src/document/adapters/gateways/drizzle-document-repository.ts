@@ -320,9 +320,16 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         (id) => !aggregateCommentIds.has(id),
       );
       if (commentIdsToDelete.length > 0) {
+        // document_id も条件に含め、万一 ID が他文書と衝突しても
+        // この文書のコメントだけを消す（安全側の冗長条件）。
         await tx
           .delete(documentComments)
-          .where(inArray(documentComments.id, commentIdsToDelete));
+          .where(
+            and(
+              eq(documentComments.documentId, document.id.value),
+              inArray(documentComments.id, commentIdsToDelete),
+            ),
+          );
       }
     });
   }
