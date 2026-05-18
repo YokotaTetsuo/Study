@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
 import { useMe } from '../../../features/auth';
@@ -31,6 +31,35 @@ import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
 // 行のうちプレビュー切替に使うセルの見た目（クリック可能を示す）。
 const previewCellSx = { cursor: 'pointer' } as const;
+
+/**
+ * クリック/キーボード（Enter・Space）でその版のインラインプレビューに
+ * 切り替えるセル。操作・表示セルとは別にすることで伝播衝突を構造で避ける。
+ */
+function PreviewCell({
+  onSelect,
+  children,
+}: {
+  readonly onSelect: () => void;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <TableCell
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      sx={previewCellSx}
+    >
+      {children}
+    </TableCell>
+  );
+}
 
 export function DocumentDetailPage(): ReactElement {
   const { projectId, documentId } = useParams({
@@ -154,78 +183,66 @@ export function DocumentDetailPage(): ReactElement {
             </TableRow>
           </TableHead>
           <TableBody>
-            {d.versions.map((v) => (
-              <TableRow
-                key={v.versionNumber}
-                selected={selected === v.versionNumber}
-              >
-                {/* 版/状態/作成日時セルのクリックでインラインプレビュー切替。
-                    操作・表示セルは別扱いにし、伝播衝突を構造で避ける。 */}
-                <TableCell
-                  onClick={() => {
-                    setSelected(v.versionNumber);
-                  }}
-                  sx={previewCellSx}
+            {d.versions.map((v) => {
+              const selectVersion = (): void => {
+                setSelected(v.versionNumber);
+              };
+              return (
+                <TableRow
+                  key={v.versionNumber}
+                  selected={selected === v.versionNumber}
                 >
-                  v{v.versionNumber}
-                </TableCell>
-                <TableCell
-                  onClick={() => {
-                    setSelected(v.versionNumber);
-                  }}
-                  sx={previewCellSx}
-                >
-                  <VersionStatusBadge status={v.status} />
-                </TableCell>
-                <TableCell
-                  onClick={() => {
-                    setSelected(v.versionNumber);
-                  }}
-                  sx={previewCellSx}
-                >
-                  {new Date(v.createdAt).toLocaleString('ja-JP')}
-                </TableCell>
-                <TableCell>
-                  <VersionActions
-                    status={v.status}
-                    pending={workflowPending}
-                    permissions={permissions}
-                    onSubmit={() => {
-                      runAction(workflow.submit, v.versionNumber);
-                    }}
-                    onApprove={() => {
-                      runAction(workflow.approve, v.versionNumber);
-                    }}
-                    onRequestChanges={() => {
-                      runAction(workflow.requestChanges, v.versionNumber);
-                    }}
-                    onReject={() => {
-                      runAction(workflow.reject, v.versionNumber);
-                    }}
-                    onPublish={() => {
-                      runAction(workflow.publish, v.versionNumber);
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      void navigate({
-                        to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
-                        params: {
-                          projectId: d.projectId,
-                          documentId,
-                          versionNumber: String(v.versionNumber),
-                        },
-                      });
-                    }}
-                  >
-                    表示
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                  <PreviewCell onSelect={selectVersion}>
+                    v{v.versionNumber}
+                  </PreviewCell>
+                  <PreviewCell onSelect={selectVersion}>
+                    <VersionStatusBadge status={v.status} />
+                  </PreviewCell>
+                  <PreviewCell onSelect={selectVersion}>
+                    {new Date(v.createdAt).toLocaleString('ja-JP')}
+                  </PreviewCell>
+                  <TableCell>
+                    <VersionActions
+                      status={v.status}
+                      pending={workflowPending}
+                      permissions={permissions}
+                      onSubmit={() => {
+                        runAction(workflow.submit, v.versionNumber);
+                      }}
+                      onApprove={() => {
+                        runAction(workflow.approve, v.versionNumber);
+                      }}
+                      onRequestChanges={() => {
+                        runAction(workflow.requestChanges, v.versionNumber);
+                      }}
+                      onReject={() => {
+                        runAction(workflow.reject, v.versionNumber);
+                      }}
+                      onPublish={() => {
+                        runAction(workflow.publish, v.versionNumber);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        void navigate({
+                          to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+                          params: {
+                            projectId: d.projectId,
+                            documentId,
+                            versionNumber: String(v.versionNumber),
+                          },
+                        });
+                      }}
+                    >
+                      表示
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}
