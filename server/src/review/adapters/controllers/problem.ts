@@ -50,5 +50,22 @@ export function toProblem(error: unknown): MappedProblem {
   if (error instanceof DomainError) {
     return make(400, 'Bad Request', error.message);
   }
+  if (isSerializationConflict(error)) {
+    // REPEATABLE READ 下の直列化失敗/デッドロックは並行遷移の競合。
+    // 再試行可能な競合として 409 にする（500 にしない）。
+    return make(
+      409,
+      'Conflict',
+      '同時更新が競合しました。時間をおいて再試行してください',
+    );
+  }
   return make(500, 'Internal Server Error', 'unexpected error');
+}
+
+/** PostgreSQL の直列化失敗 (40001) / デッドロック (40P01)。 */
+function isSerializationConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false;
+  }
+  return error.code === '40001' || error.code === '40P01';
 }

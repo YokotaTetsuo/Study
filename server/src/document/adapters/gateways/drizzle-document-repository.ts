@@ -156,17 +156,25 @@ export class DrizzleDocumentRepository implements DocumentRepository {
       if (toInsert.length > 0) {
         await tx.insert(documentVersions).values(toInsert);
       }
-      const toUpdate = versionRows.filter((v) =>
-        persisted.has(v.versionNumber),
-      );
-      for (const v of toUpdate) {
+      // 既登録版の status 更新は版数に比例した N 回 UPDATE を避け、
+      // status ごとにまとめて 1 UPDATE する（distinct status は最大 6）。
+      const byStatus = new Map<string, number[]>();
+      for (const v of versionRows) {
+        if (!persisted.has(v.versionNumber)) {
+          continue;
+        }
+        const list = byStatus.get(v.status) ?? [];
+        list.push(v.versionNumber);
+        byStatus.set(v.status, list);
+      }
+      for (const [status, versionNumbers] of byStatus) {
         await tx
           .update(documentVersions)
-          .set({ status: v.status })
+          .set({ status })
           .where(
             and(
               eq(documentVersions.documentId, document.id.value),
-              eq(documentVersions.versionNumber, v.versionNumber),
+              inArray(documentVersions.versionNumber, versionNumbers),
             ),
           );
       }
