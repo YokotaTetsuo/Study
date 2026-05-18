@@ -19,6 +19,7 @@ const RESULT: DocumentResult = {
   projectId: PROJECT_ID,
   name: '設計書',
   createdAt: dayjs('2026-05-18T00:00:00.000Z'),
+  officialVersionNumber: null,
   versions: [
     {
       versionNumber: 1,

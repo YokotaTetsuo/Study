@@ -47,9 +47,10 @@ function serialize(result: DocumentResult): DocumentResponse {
     projectId: result.projectId,
     name: result.name,
     createdAt: result.createdAt.toISOString(),
+    officialVersionNumber: result.officialVersionNumber,
     versions: result.versions.map((v) => ({
       versionNumber: v.versionNumber,
-      // ドメイン上 'draft' のみ。契約スキーマで型を確定させる。
+      // 契約スキーマで版状態の型を確定させる（不正値は parse で弾く）。
       status: versionStatusSchema.parse(v.status),
       uploadedBy: v.uploadedBy,
       createdAt: v.createdAt.toISOString(),

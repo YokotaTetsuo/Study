@@ -37,6 +37,8 @@ export const documentResponseSchema = z.object({
   projectId: z.string(),
   name: z.string(),
   createdAt: z.string().datetime(),
+  // 正式版ポインタ（null=未公開）。
+  officialVersionNumber: z.number().int().min(1).nullable(),
   versions: z.array(documentVersionSchema),
 });
 export type DocumentResponse = z.infer<typeof documentResponseSchema>;

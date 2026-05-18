@@ -217,6 +217,11 @@ export class ReviewRequest {
     return this.#versionNumber;
   }
 
+  /** 提出時にスナップショットした承認ポリシー（永続化・参照用）。 */
+  get policy(): ApprovalPolicy {
+    return this.#policy;
+  }
+
   get status(): ReviewRequestStatus {
     return this.#status;
   }
