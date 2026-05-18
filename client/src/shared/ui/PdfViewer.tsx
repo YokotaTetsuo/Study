@@ -1,13 +1,9 @@
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
-import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
-// Vite: ワーカーを URL として解決し GlobalWorkerOptions に設定する。
-// eslint-disable-next-line import-x/default -- Vite の ?url は文字列を default export する
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+import { loadPdf } from '../lib/pdf-cache';
 
 interface PdfViewerProps {
   /** Cookie 認証付きで取得する PDF の URL。 */
@@ -57,19 +53,16 @@ export function PdfViewer({
   useEffect(() => {
     // クロージャ越しの再代入が CFA で追えないため holder で boolean を保つ。
     const token = { cancelled: false };
-    let loaded: PDFDocumentProxy | null = null;
     setError(false);
-    setDoc(null);
     setPage(1);
-    const task = pdfjsLib.getDocument({ url: src, withCredentials: true });
-    task.promise.then(
+    // src 変更時に doc を null へ落とさない（= 旧版の描画を保持したまま
+    // 新版を読み込む）ことで、版切替の blank ちらつきを防ぐ。
+    // PDF はキャッシュ所有なので destroy しない。
+    loadPdf(src).then(
       (pdf) => {
-        if (token.cancelled) {
-          void pdf.destroy();
-          return;
+        if (!token.cancelled) {
+          setDoc(pdf);
         }
-        loaded = pdf;
-        setDoc(pdf);
       },
       () => {
         if (!token.cancelled) {
@@ -79,10 +72,6 @@ export function PdfViewer({
     );
     return (): void => {
       token.cancelled = true;
-      void task.destroy();
-      if (loaded !== null) {
-        void loaded.destroy();
-      }
     };
   }, [src]);
 
