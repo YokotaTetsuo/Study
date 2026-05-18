@@ -48,6 +48,9 @@ export class DeleteCommentUseCase {
     ) {
       throw new NotAuthorizedError();
     }
+    // 版未存在の権威的エラーはここ（アプリ境界）の VersionNotFoundError。
+    // get-version-file-usecase と同じ事前チェック慣例（集約の
+    // InvalidDocumentStateError は集約変更の最終ガードであり別責務）。
     if (document.findVersion(command.versionNumber) === undefined) {
       throw new VersionNotFoundError();
     }
