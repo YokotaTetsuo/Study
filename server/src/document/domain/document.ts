@@ -37,16 +37,9 @@ class Comment {
     this.#createdAt = params.createdAt;
   }
 
-  static create(params: {
-    id: CommentId;
-    authorId: CommentAuthorId;
-    content: CommentContent;
-    createdAt: Dayjs;
-  }): Comment {
-    return new Comment(params);
-  }
-
-  static reconstruct(params: {
+  // 新規追加・永続化復元で構築時不変条件に差が無いため単一ファクトリ。
+  // （差が生じた時点で create/reconstruct を分離する。）
+  static of(params: {
     id: CommentId;
     authorId: CommentAuthorId;
     content: CommentContent;
@@ -140,7 +133,7 @@ class DocumentVersion {
     const comments = [...params.commentsData]
       .sort((a, b) => a.createdAt.valueOf() - b.createdAt.valueOf())
       .map((d) =>
-        Comment.reconstruct({
+        Comment.of({
           id: new CommentId(d.id),
           authorId: new CommentAuthorId(d.authorId),
           content: new CommentContent(d.content),
@@ -209,7 +202,7 @@ class DocumentVersion {
     content: CommentContent;
     createdAt: Dayjs;
   }): CommentReadonly {
-    const comment = Comment.create(params);
+    const comment = Comment.of(params);
     // createdAt 昇順を不変条件として保持する。呼び出し側クロックの
     // 単調性に依存せず、最初に「より新しい」要素の手前へ挿入する
     // （同時刻は既存の後 = 挿入順を保ち、安定ソートする reconstruct と

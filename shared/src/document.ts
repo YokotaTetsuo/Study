@@ -50,8 +50,10 @@ export type DocumentListResponse = z.infer<typeof documentListResponseSchema>;
 export const commentSchema = z.object({
   id: z.string(),
   authorId: z.string(),
-  // レスポンスは domain が trim 済みを保証するため、ここでは値を
-  // 書き換えない（plain）。リクエスト側のみ trim で正規化する。
+  // レスポンスは server 側の意味的な値をそのまま表現する契約のため、
+  // ここで .trim() による正規化はしない（受信値を書き換えない）。
+  // 「trim 済み」は domain CommentContent 経由で生成される前提に基づく
+  // 想定であり、この schema が検証・強制する不変条件ではない点に注意。
   content: z.string().min(1).max(2000),
   createdAt: z.string().datetime(),
 });

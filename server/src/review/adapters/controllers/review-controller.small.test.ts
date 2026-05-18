@@ -6,6 +6,7 @@ import { UserId } from '../../../auth/domain/user-id';
 import type { DocumentResult } from '../../../document/application/document-result';
 import { DocumentNotFoundError } from '../../../document/domain/document-not-found-error';
 import { InvalidVersionTransitionError } from '../../../document/domain/invalid-version-transition-error';
+import { VersionNotFoundError } from '../../../document/domain/version-not-found-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 
 import { createReviewApp } from './review-controller';
@@ -125,6 +126,23 @@ describe('review controller', () => {
       deps(loggedIn, {
         submitVersion: {
           execute: vi.fn().mockRejectedValue(new DocumentNotFoundError()),
+        },
+      }),
+    );
+
+    const res = await app.request(post(SUBMIT, 'sid=a'));
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+  });
+
+  it('should map VersionNotFoundError to 404 problem+json', async () => {
+    const app = createReviewApp(
+      deps(loggedIn, {
+        submitVersion: {
+          execute: vi.fn().mockRejectedValue(new VersionNotFoundError()),
         },
       }),
     );

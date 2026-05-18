@@ -4,6 +4,7 @@ import { DocumentNotFoundError } from '../../../document/domain/document-not-fou
 import { InvalidDocumentStateError } from '../../../document/domain/invalid-document-state-error';
 import { InvalidVersionTransitionError } from '../../../document/domain/invalid-version-transition-error';
 import { StaleDocumentError } from '../../../document/domain/stale-document-error';
+import { VersionNotFoundError } from '../../../document/domain/version-not-found-error';
 import { isDbConflict } from '../../../shared-kernel/db-conflict';
 import { DomainError } from '../../../shared-kernel/domain-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
@@ -37,6 +38,7 @@ export function toProblem(error: unknown): MappedProblem {
   }
   if (
     error instanceof DocumentNotFoundError ||
+    error instanceof VersionNotFoundError ||
     error instanceof ReviewRequestNotFoundError
   ) {
     return make(404, 'Not Found', error.message);
