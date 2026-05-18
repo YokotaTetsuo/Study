@@ -1,6 +1,5 @@
+import { ULID_PATTERN } from '../../shared-kernel/ulid';
 import { ValidationError } from '../../shared-kernel/validation-error';
-
-const ULID_PATTERN = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 
 /** コメントを書いたユーザーの ID（ULID）。 */
 export class CommentAuthorId {
