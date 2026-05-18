@@ -100,7 +100,9 @@ export function AppShell(): ReactElement {
             PDF Review
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography>ログイン中: {me.data.displayName}</Typography>
+            <Typography>
+              ログイン中: {me.data.displayName}（{me.data.email}）
+            </Typography>
             <Button
               color="inherit"
               variant="outlined"
