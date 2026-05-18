@@ -11,9 +11,12 @@ export type FileValidation =
   | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
 
-function formatMiB(bytes: number): string {
+export function formatMiB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
+
+/** UI 表示・accept・検証で同一の制約を参照するための表示ラベル。 */
+export const MAX_FILE_SIZE_LABEL = formatMiB(MAX_FILE_SIZE_BYTES);
 
 export function validatePdfFile(file: File): FileValidation {
   if (file.type !== ACCEPTED_MIME) {
