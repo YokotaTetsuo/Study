@@ -16,7 +16,7 @@ DB 競合）/ `415` / `400` / `500`。
 | --------------------- | ---------- | -------------- | -------------------------- |
 | POST `/auth/register` | 公開       | なし           | —                          |
 | POST `/auth/login`    | 公開       | なし           | 資格情報不正は 401         |
-| GET `/auth/logout`    | 要ログイン | 本人セッション | セッション破棄             |
+| POST `/auth/logout`   | 要ログイン | 本人セッション | セッション破棄             |
 | GET `/auth/me`        | 要ログイン | 本人           | `UnauthenticatedError`→401 |
 | GET `/health`         | 公開       | なし           | —                          |
 
@@ -33,16 +33,16 @@ DB 競合）/ `415` / `400` / `500`。
 
 ## document
 
-| メソッド/パス                                                      | 認証       | 認可                               | 強制点                                                        |
-| ------------------------------------------------------------------ | ---------- | ---------------------------------- | ------------------------------------------------------------- |
-| POST `/documents`                                                  | 要ログイン | プロジェクトメンバー               | `projectAccess.isMember`、非メンバーは 403                    |
-| GET `/projects/{projectId}/documents`                              | 要ログイン | メンバー                           | 同上                                                          |
-| GET `/documents/{documentId}`                                      | 要ログイン | メンバー                           | 同上                                                          |
-| POST `/documents/{documentId}/versions`                            | 要ログイン | メンバー                           | 同上。非 PDF は 415                                           |
-| GET `/documents/{documentId}/versions/{n}/file`                    | 要ログイン | メンバー                           | 同上。版未存在 404                                            |
-| POST `/documents/{documentId}/versions/{n}/comments`               | 要ログイン | メンバー                           | `AddCommentUseCase` が `isMember`、非メンバー 403             |
-| GET `/documents/{documentId}/versions/{n}/comments`                | 要ログイン | メンバー                           | `ListCommentsUseCase` が `isMember`                           |
-| DELETE `/documents/{documentId}/versions/{n}/comments/{commentId}` | 要ログイン | メンバー かつ **コメント著者本人** | usecase が `isMember`、ドメインが `CommentForbiddenError`→403 |
+| メソッド/パス                                                                  | 認証       | 認可                               | 強制点                                                        |
+| ------------------------------------------------------------------------------ | ---------- | ---------------------------------- | ------------------------------------------------------------- |
+| POST `/documents`                                                              | 要ログイン | プロジェクトメンバー               | `projectAccess.isMember`、非メンバーは 403                    |
+| GET `/projects/{projectId}/documents`                                          | 要ログイン | メンバー                           | 同上                                                          |
+| GET `/documents/{documentId}`                                                  | 要ログイン | メンバー                           | 同上                                                          |
+| POST `/documents/{documentId}/versions`                                        | 要ログイン | メンバー                           | 同上。非 PDF は 415                                           |
+| GET `/documents/{documentId}/versions/{versionNumber}/file`                    | 要ログイン | メンバー                           | 同上。版未存在 404                                            |
+| POST `/documents/{documentId}/versions/{versionNumber}/comments`               | 要ログイン | メンバー                           | `AddCommentUseCase` が `isMember`、非メンバー 403             |
+| GET `/documents/{documentId}/versions/{versionNumber}/comments`                | 要ログイン | メンバー                           | `ListCommentsUseCase` が `isMember`                           |
+| DELETE `/documents/{documentId}/versions/{versionNumber}/comments/{commentId}` | 要ログイン | メンバー かつ **コメント著者本人** | usecase が `isMember`、ドメインが `CommentForbiddenError`→403 |
 
 ## review（ワークフロー）
 
@@ -50,13 +50,13 @@ DB 競合）/ `415` / `400` / `500`。
 メンバーシップを必須化し（非メンバーは `NotAuthorizedError`→403）、
 ロール/承認ポリシーを解決する。
 
-| メソッド/パス                                               | 認証       | 認可                           | 強制点                                               |
-| ----------------------------------------------------------- | ---------- | ------------------------------ | ---------------------------------------------------- |
-| POST `/documents/{documentId}/versions/{n}/submit`          | 要ログイン | メンバー                       | `resolveProjectContext`                              |
-| POST `/documents/{documentId}/versions/{n}/approve`         | 要ログイン | 承認ポリシーの承認可能ロール   | ポリシー評価、不可は `UnauthorizedApproverError`→403 |
-| POST `/documents/{documentId}/versions/{n}/request-changes` | 要ログイン | reviewer / owner               | `assertCanReview`、不可は 403                        |
-| POST `/documents/{documentId}/versions/{n}/reject`          | 要ログイン | reviewer / owner               | `assertCanReview`                                    |
-| POST `/documents/{documentId}/versions/{n}/publish`         | 要ログイン | 承認ポリシー充足後の許可ロール | usecase 判定                                         |
+| メソッド/パス                                                           | 認証       | 認可                           | 強制点                                               |
+| ----------------------------------------------------------------------- | ---------- | ------------------------------ | ---------------------------------------------------- |
+| POST `/documents/{documentId}/versions/{versionNumber}/submit`          | 要ログイン | メンバー                       | `resolveProjectContext`                              |
+| POST `/documents/{documentId}/versions/{versionNumber}/approve`         | 要ログイン | 承認ポリシーの承認可能ロール   | ポリシー評価、不可は `UnauthorizedApproverError`→403 |
+| POST `/documents/{documentId}/versions/{versionNumber}/request-changes` | 要ログイン | reviewer / owner               | `assertCanReview`、不可は 403                        |
+| POST `/documents/{documentId}/versions/{versionNumber}/reject`          | 要ログイン | reviewer / owner               | `assertCanReview`                                    |
+| POST `/documents/{documentId}/versions/{versionNumber}/publish`         | 要ログイン | 承認ポリシー充足後の許可ロール | usecase 判定                                         |
 
 ## 監査結論
 
