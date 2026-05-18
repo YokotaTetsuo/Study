@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { Document } from '../../domain/document';
@@ -9,7 +10,38 @@ import type { DocumentRepository } from '../../domain/document-repository';
 import { StaleDocumentError } from '../../domain/stale-document-error';
 
 import type { DbOrTx } from './database';
-import { documentVersions, documents } from './schema';
+import { documentComments, documentVersions, documents } from './schema';
+
+/** 版番号ごとにコメント生データをまとめる（reconstruct へ渡す形）。 */
+interface CommentData {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: Dayjs;
+}
+
+function commentsByVersion(
+  rows: readonly {
+    id: string;
+    versionNumber: number;
+    authorId: string;
+    content: string;
+    createdAt: Date;
+  }[],
+): Map<number, CommentData[]> {
+  const map = new Map<number, CommentData[]>();
+  for (const c of rows) {
+    const list = map.get(c.versionNumber) ?? [];
+    list.push({
+      id: c.id,
+      authorId: c.authorId,
+      content: c.content,
+      createdAt: dayjs(c.createdAt),
+    });
+    map.set(c.versionNumber, list);
+  }
+  return map;
+}
 
 export class DrizzleDocumentRepository implements DocumentRepository {
   readonly #db: DbOrTx;
@@ -52,14 +84,23 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           .from(documentVersions)
           .where(eq(documentVersions.documentId, id.value))
           .orderBy(asc(documentVersions.versionNumber));
-        return { docRow, versionRows };
+        const commentRows = await tx
+          .select()
+          .from(documentComments)
+          .where(eq(documentComments.documentId, id.value))
+          .orderBy(
+            asc(documentComments.versionNumber),
+            asc(documentComments.createdAt),
+          );
+        return { docRow, versionRows, commentRows };
       },
       { isolationLevel: 'repeatable read' },
     );
     if (snapshot === null) {
       return null;
     }
-    const { docRow, versionRows } = snapshot;
+    const { docRow, versionRows, commentRows } = snapshot;
+    const byVersion = commentsByVersion(commentRows);
     return Document.reconstruct({
       id: new DocumentId(docRow.id),
       projectId: new DocumentProjectId(docRow.projectId),
@@ -71,6 +112,7 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         storageKey: v.storageKey,
         uploadedBy: v.uploadedBy,
         createdAt: dayjs(v.createdAt),
+        comments: byVersion.get(v.versionNumber) ?? [],
       })),
       officialVersionNumber: docRow.officialVersionNumber,
       revision: docRow.revision,
@@ -109,8 +151,27 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           list.push(v);
           versionsByDoc.set(v.documentId, list);
         }
-        return docRows.map((docRow) =>
-          Document.reconstruct({
+        // コメントも全文書ぶんを 1 クエリで取得し N+1 を避ける。
+        const commentRows = await tx
+          .select()
+          .from(documentComments)
+          .where(inArray(documentComments.documentId, ids))
+          .orderBy(
+            asc(documentComments.documentId),
+            asc(documentComments.versionNumber),
+            asc(documentComments.createdAt),
+          );
+        const commentsByDoc = new Map<string, typeof commentRows>();
+        for (const c of commentRows) {
+          const list = commentsByDoc.get(c.documentId) ?? [];
+          list.push(c);
+          commentsByDoc.set(c.documentId, list);
+        }
+        return docRows.map((docRow) => {
+          const byVersion = commentsByVersion(
+            commentsByDoc.get(docRow.id) ?? [],
+          );
+          return Document.reconstruct({
             id: new DocumentId(docRow.id),
             projectId: new DocumentProjectId(docRow.projectId),
             name: new DocumentName(docRow.name),
@@ -121,11 +182,12 @@ export class DrizzleDocumentRepository implements DocumentRepository {
               storageKey: v.storageKey,
               uploadedBy: v.uploadedBy,
               createdAt: dayjs(v.createdAt),
+              comments: byVersion.get(v.versionNumber) ?? [],
             })),
             officialVersionNumber: docRow.officialVersionNumber,
             revision: docRow.revision,
-          }),
-        );
+          });
+        });
       },
       { isolationLevel: 'repeatable read' },
     );
@@ -227,6 +289,40 @@ export class DrizzleDocumentRepository implements DocumentRepository {
               inArray(documentVersions.versionNumber, versionNumbers),
             ),
           );
+      }
+      // コメントはイミュータブル（編集なし）。集約と DB の差分から
+      // 新規追加分を insert、削除分を delete するだけで同期できる。
+      const aggregateComments = document.versions.flatMap((v) =>
+        v.comments.map((c) => ({
+          id: c.id.value,
+          documentId: document.id.value,
+          versionNumber: v.versionNumber,
+          authorId: c.authorId.value,
+          content: c.content.value,
+          createdAt: c.createdAt.toDate(),
+        })),
+      );
+      const persistedCommentRows = await tx
+        .select({ id: documentComments.id })
+        .from(documentComments)
+        .where(eq(documentComments.documentId, document.id.value));
+      const persistedCommentIds = new Set(
+        persistedCommentRows.map((r) => r.id),
+      );
+      const aggregateCommentIds = new Set(aggregateComments.map((c) => c.id));
+      const commentsToInsert = aggregateComments.filter(
+        (c) => !persistedCommentIds.has(c.id),
+      );
+      if (commentsToInsert.length > 0) {
+        await tx.insert(documentComments).values(commentsToInsert);
+      }
+      const commentIdsToDelete = [...persistedCommentIds].filter(
+        (id) => !aggregateCommentIds.has(id),
+      );
+      if (commentIdsToDelete.length > 0) {
+        await tx
+          .delete(documentComments)
+          .where(inArray(documentComments.id, commentIdsToDelete));
       }
     });
   }

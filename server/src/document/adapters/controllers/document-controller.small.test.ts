@@ -3,9 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { SessionStore } from '../../../auth/application/session-store';
 import { UserId } from '../../../auth/domain/user-id';
+import type { CommentResult } from '../../application/comment-result';
 import type { DocumentResult } from '../../application/document-result';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { UnsupportedContentTypeError } from '../../application/unsupported-content-type-error';
+import { CommentForbiddenError } from '../../domain/comment-forbidden-error';
 import { DocumentNotFoundError } from '../../domain/document-not-found-error';
 
 import { createDocumentApp } from './document-controller';
@@ -28,6 +30,14 @@ const RESULT: DocumentResult = {
       createdAt: dayjs('2026-05-18T00:00:00.000Z'),
     },
   ],
+};
+
+const COMMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789C';
+const COMMENT_RESULT: CommentResult = {
+  id: COMMENT_ID,
+  authorId: USER_ID,
+  content: '配置を見直してください',
+  createdAt: dayjs('2026-05-18T00:00:00.000Z'),
 };
 
 const loggedIn: SessionStore = {
@@ -53,6 +63,9 @@ function deps(
     getVersionFile: {
       execute: vi.fn().mockResolvedValue({ data: new Uint8Array([1, 2, 3]) }),
     },
+    addComment: { execute: vi.fn().mockResolvedValue(COMMENT_RESULT) },
+    listComments: { execute: vi.fn().mockResolvedValue([COMMENT_RESULT]) },
+    deleteComment: { execute: vi.fn().mockResolvedValue(undefined) },
     sessions,
     ...overrides,
   };
@@ -261,6 +274,95 @@ describe('document controller', () => {
       new Request(`http://local/documents/${DOC_ID}/versions/0/file`, {
         headers: new Headers([['cookie', 'sid=a']]),
       }),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it('should add a comment and return 201 with the comment', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      postJson(
+        `/documents/${DOC_ID}/versions/1/comments`,
+        { content: '配置を見直してください' },
+        'sid=a',
+      ),
+    );
+
+    expect(res.status).toBe(201);
+    const body: unknown = await res.json();
+    expect(body).toMatchObject({ id: COMMENT_ID, authorId: USER_ID });
+  });
+
+  it('should require authentication to add a comment (401)', async () => {
+    const app = createDocumentApp(deps(anon));
+
+    const res = await app.request(
+      postJson(`/documents/${DOC_ID}/versions/1/comments`, { content: 'x' }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should list comments of a version (200)', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}/versions/1/comments`, {
+        headers: new Headers([['cookie', 'sid=a']]),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body: unknown = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it('should delete a comment and return 204', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      new Request(
+        `http://local/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`,
+        { method: 'DELETE', headers: new Headers([['cookie', 'sid=a']]) },
+      ),
+    );
+
+    expect(res.status).toBe(204);
+  });
+
+  it('should map CommentForbiddenError to 403 on delete', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        deleteComment: {
+          execute: vi.fn().mockRejectedValue(new CommentForbiddenError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      new Request(
+        `http://local/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`,
+        { method: 'DELETE', headers: new Headers([['cookie', 'sid=a']]) },
+      ),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+  });
+
+  it('should reject a comment on a non-positive version (400)', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      postJson(
+        `/documents/${DOC_ID}/versions/0/comments`,
+        { content: 'x' },
+        'sid=a',
+      ),
     );
 
     expect(res.status).toBe(400);

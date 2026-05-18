@@ -1,4 +1,5 @@
 import {
+  foreignKey,
   integer,
   pgTable,
   primaryKey,
@@ -32,4 +33,27 @@ export const documentVersions = pgTable(
   },
   // (document_id, version_number) を主キーにし、版番号の重複を DB で禁止する。
   (t) => [primaryKey({ columns: [t.documentId, t.versionNumber] })],
+);
+
+export const documentComments = pgTable(
+  'document_comments',
+  {
+    // コメント ID（ULID）。グローバル一意なので単独主キー。
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    versionNumber: integer('version_number').notNull(),
+    authorId: text('author_id').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  // 親版の複合キーへ FK。版削除（=文書削除カスケード）に追随して消す。
+  (t) => [
+    foreignKey({
+      columns: [t.documentId, t.versionNumber],
+      foreignColumns: [
+        documentVersions.documentId,
+        documentVersions.versionNumber,
+      ],
+    }).onDelete('cascade'),
+  ],
 );

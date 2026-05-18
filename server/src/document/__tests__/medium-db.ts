@@ -9,7 +9,7 @@ export function makeTestDbClient(): DbClient {
 
 /** document 関連テーブルを空にする（FK 順）。 */
 export async function truncateDocuments(client: DbClient): Promise<void> {
-  await client.sql`truncate table document_versions, documents restart identity cascade`;
+  await client.sql`truncate table document_comments, document_versions, documents restart identity cascade`;
 }
 
 /** project_members を空にする（SqlProjectAccess テスト用）。 */

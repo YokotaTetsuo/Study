@@ -43,6 +43,13 @@
       "when": 1779110404678,
       "tag": "0005_brave_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779130011559,
+      "tag": "0006_wandering_maddog",
+      "breakpoints": true
     }
   ]
 }
