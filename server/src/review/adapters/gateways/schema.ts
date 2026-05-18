@@ -8,6 +8,8 @@ import {
   unique,
 } from 'drizzle-orm/pg-core';
 
+import { documents } from '../../../document/adapters/gateways/schema';
+
 /**
  * レビュー依頼の永続化スキーマ。承認ポリシーは提出時スナップショットを
  * 列として保持する（プロジェクトのポリシー変更が進行中レビューへ
@@ -17,7 +19,9 @@ export const reviewRequests = pgTable(
   'review_requests',
   {
     id: text('id').primaryKey(),
-    documentId: text('document_id').notNull(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
     versionNumber: integer('version_number').notNull(),
     status: text('status').notNull(),
     requiredApprovals: integer('required_approvals').notNull(),
