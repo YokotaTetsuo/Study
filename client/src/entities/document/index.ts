@@ -8,5 +8,10 @@ export {
   getDocument,
   createDocument,
   uploadVersion,
+  submitVersion,
+  approveVersion,
+  requestChangesVersion,
+  rejectVersion,
+  publishVersion,
   versionFileUrl,
 } from './api/document-api';

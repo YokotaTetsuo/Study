@@ -19,6 +19,11 @@ import {
   UploadDropzone,
   useUploadVersion,
 } from '../../../features/upload-version';
+import {
+  useVersionWorkflow,
+  VersionActions,
+  VersionStatusBadge,
+} from '../../../features/version-workflow';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 
 export function DocumentDetailPage(): ReactElement {
@@ -27,7 +32,23 @@ export function DocumentDetailPage(): ReactElement {
   });
   const document = useDocument(documentId);
   const upload = useUploadVersion(documentId);
+  const workflow = useVersionWorkflow(documentId);
   const [selected, setSelected] = useState<number | null>(null);
+
+  const workflowPending = [
+    workflow.submit,
+    workflow.approve,
+    workflow.requestChanges,
+    workflow.reject,
+    workflow.publish,
+  ].some((m) => m.isPending);
+  const workflowFailed = [
+    workflow.submit,
+    workflow.approve,
+    workflow.requestChanges,
+    workflow.reject,
+    workflow.publish,
+  ].some((m) => m.isError);
 
   const versions = document.data?.versions;
   useEffect(() => {
@@ -51,6 +72,19 @@ export function DocumentDetailPage(): ReactElement {
       <Typography variant="h5" gutterBottom>
         {d.name}
       </Typography>
+
+      {d.officialVersionNumber !== null && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          正式版: v{d.officialVersionNumber}
+        </Alert>
+      )}
+
+      {workflowFailed && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          操作に失敗しました。状態や権限、競合（時間をおいて再試行）を
+          ご確認ください。
+        </Alert>
+      )}
 
       {d.versions.length === 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -83,6 +117,7 @@ export function DocumentDetailPage(): ReactElement {
               <TableCell>版</TableCell>
               <TableCell>状態</TableCell>
               <TableCell>作成日時</TableCell>
+              <TableCell>操作</TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
@@ -93,9 +128,32 @@ export function DocumentDetailPage(): ReactElement {
                 selected={selected === v.versionNumber}
               >
                 <TableCell>v{v.versionNumber}</TableCell>
-                <TableCell>{v.status}</TableCell>
+                <TableCell>
+                  <VersionStatusBadge status={v.status} />
+                </TableCell>
                 <TableCell>
                   {new Date(v.createdAt).toLocaleString('ja-JP')}
+                </TableCell>
+                <TableCell>
+                  <VersionActions
+                    status={v.status}
+                    pending={workflowPending}
+                    onSubmit={() => {
+                      workflow.submit.mutate(v.versionNumber);
+                    }}
+                    onApprove={() => {
+                      workflow.approve.mutate(v.versionNumber);
+                    }}
+                    onRequestChanges={() => {
+                      workflow.requestChanges.mutate(v.versionNumber);
+                    }}
+                    onReject={() => {
+                      workflow.reject.mutate(v.versionNumber);
+                    }}
+                    onPublish={() => {
+                      workflow.publish.mutate(v.versionNumber);
+                    }}
+                  />
                 </TableCell>
                 <TableCell>
                   <Button

@@ -70,6 +70,56 @@ export async function uploadVersion(
   );
 }
 
+/** ワークフロー操作。いずれも更新後の文書を返す（200）。 */
+async function versionAction(
+  documentId: string,
+  versionNumber: number,
+  action: 'submit' | 'approve' | 'request-changes' | 'reject' | 'publish',
+): Promise<DocumentResponse> {
+  return documentResponseSchema.parse(
+    await request(
+      `/documents/${documentId}/versions/${String(versionNumber)}/${action}`,
+      { method: 'POST' },
+      200,
+    ),
+  );
+}
+
+export function submitVersion(
+  documentId: string,
+  versionNumber: number,
+): Promise<DocumentResponse> {
+  return versionAction(documentId, versionNumber, 'submit');
+}
+
+export function approveVersion(
+  documentId: string,
+  versionNumber: number,
+): Promise<DocumentResponse> {
+  return versionAction(documentId, versionNumber, 'approve');
+}
+
+export function requestChangesVersion(
+  documentId: string,
+  versionNumber: number,
+): Promise<DocumentResponse> {
+  return versionAction(documentId, versionNumber, 'request-changes');
+}
+
+export function rejectVersion(
+  documentId: string,
+  versionNumber: number,
+): Promise<DocumentResponse> {
+  return versionAction(documentId, versionNumber, 'reject');
+}
+
+export function publishVersion(
+  documentId: string,
+  versionNumber: number,
+): Promise<DocumentResponse> {
+  return versionAction(documentId, versionNumber, 'publish');
+}
+
 /** 版 PDF のダウンロード URL（pdf.js / リンクから直接参照する）。 */
 export function versionFileUrl(
   documentId: string,
