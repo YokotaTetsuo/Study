@@ -34,8 +34,7 @@ export function LoginPage(): ReactElement {
         onSubmit={(values) => {
           login.mutate(values, {
             onSuccess: () => {
-              // 認証画面を履歴に残さない（戻るボタンで /login に戻れない）。
-              void navigate({ to: '/', replace: true });
+              void navigate({ to: '/' });
             },
           });
         }}

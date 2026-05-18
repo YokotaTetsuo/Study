@@ -79,6 +79,9 @@ export function AppShell(): ReactElement {
     trailParams.versionNumber = params.versionNumber;
   }
   const trail = buildBreadcrumbTrail(leafRouteId, trailParams);
+  // 「戻る」は履歴ではなくパンくず上の親階層（末尾の 1 つ手前）。
+  // 親が無い（最上位 = trail が 1 要素）なら null。
+  const parentCrumb = trail[trail.length - 2] ?? null;
   // 版プレビュー専用ページは PDF を主役にするため幅制約を外す。
   const wide =
     leafRouteId ===
@@ -117,7 +120,7 @@ export function AppShell(): ReactElement {
       </AppBar>
       <Container maxWidth={wide ? false : 'md'} sx={{ py: 3 }}>
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <BackButton />
+          <BackButton parent={parentCrumb} />
           <AppBreadcrumbs trail={trail} />
         </Box>
         <Outlet />

@@ -1,28 +1,76 @@
 import { Button } from '@mui/material';
-import { useCanGoBack, useRouter } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
-/**
- * 直前の画面へ戻るボタン。履歴が無い（アプリ初回エントリ等で戻る先が
- * 無い）場合は描画しない。パンくずと併設して上位/直前への動線を補う。
- */
-export function BackButton(): ReactElement | null {
-  const router = useRouter();
-  const canGoBack = useCanGoBack();
+import { crumbLabel } from '../lib/breadcrumbs';
+import type { Crumb } from '../lib/breadcrumbs';
 
-  if (!canGoBack) {
+interface Props {
+  /** 1 つ上の階層（パンくずの親）。最上位（親が無い）なら null。 */
+  readonly parent: Crumb | null;
+}
+
+/**
+ * 1 つ上の階層へ戻るボタン。ブラウザ履歴ではなく、パンくず上の
+ * 親階層へ遷移する。親が無い（最上位ページ）の場合は描画しない。
+ */
+export function BackButton({ parent }: Props): ReactElement | null {
+  const navigate = useNavigate();
+
+  if (parent === null) {
     return null;
   }
 
+  const go = (): void => {
+    switch (parent.kind) {
+      case 'home':
+        void navigate({ to: '/' });
+        return;
+      case 'projects':
+        void navigate({ to: '/projects' });
+        return;
+      case 'project-documents':
+        void navigate({
+          to: '/projects/$projectId/documents',
+          params: { projectId: parent.projectId },
+        });
+        return;
+      case 'document-detail':
+        void navigate({
+          to: '/projects/$projectId/documents/$documentId',
+          params: {
+            projectId: parent.projectId,
+            documentId: parent.documentId,
+          },
+        });
+        return;
+      case 'version-viewer':
+        void navigate({
+          to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+          params: {
+            projectId: parent.projectId,
+            documentId: parent.documentId,
+            versionNumber: parent.versionNumber,
+          },
+        });
+        return;
+      case 'project-settings':
+        void navigate({
+          to: '/projects/$projectId/settings',
+          params: { projectId: parent.projectId },
+        });
+        return;
+      default: {
+        // 網羅性は Crumb の判別共用体で型的に保証される。
+        const _exhaustive: never = parent;
+        return _exhaustive;
+      }
+    }
+  };
+
   return (
-    <Button
-      size="small"
-      variant="outlined"
-      onClick={() => {
-        router.history.back();
-      }}
-    >
-      ← 戻る
+    <Button size="small" variant="outlined" onClick={go}>
+      ← {crumbLabel(parent.kind)}へ戻る
     </Button>
   );
 }
