@@ -5,6 +5,7 @@ import {
   DOCUMENT_ID,
   FakeAuthorDirectory,
   FakeProjectAccess,
+  FailingAuthorDirectory,
   FIXED_NOW,
   InMemoryDocumentRepository,
   MEMBER_DISPLAY_NAME,
@@ -124,6 +125,26 @@ describe('ListCommentsUseCase', () => {
 
     expect(result[0]?.authorId).toBe(MEMBER_ID);
     expect(result[0]?.authorDisplayName).toBeNull();
+  });
+
+  it('should list comments with null display names when the directory throws', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithTwoCommentsBySameAuthor(documents);
+    const useCase = new ListCommentsUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      // 表示名解決が常に失敗するディレクトリ（補助情報の握り潰し検証）。
+      authorDirectory: new FailingAuthorDirectory(),
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      actingUserId: MEMBER_ID,
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result.every((c) => c.authorDisplayName === null)).toBe(true);
   });
 
   it('should pass deduplicated author ids to the directory when one author has multiple comments', async () => {
