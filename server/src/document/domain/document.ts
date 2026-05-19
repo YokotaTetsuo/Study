@@ -76,6 +76,11 @@ class Comment {
   /**
    * 本文を編集する。著者本人のみ編集でき、著者違いは Forbidden。
    * 編集に成功したら updatedAt を編集時刻へ更新する。
+   *
+   * CommentContent は構築時に trim 正規化されるため、正規化後の本文が
+   * 現在値と同一なら no-op とし updatedAt を更新しない。これにより
+   * 「updatedAt だけ進むが内容差分が無く DB へ書き戻されず、再取得で
+   * 編集済み表示が消える」不整合（updatedAt-only 変更）を防ぐ。
    */
   edit(params: {
     content: CommentContent;
@@ -84,6 +89,9 @@ class Comment {
   }): void {
     if (!this.#authorId.equals(params.requesterId)) {
       throw new CommentForbiddenError();
+    }
+    if (params.content.value === this.#content.value) {
+      return;
     }
     this.#content = params.content;
     this.#updatedAt = params.editedAt;

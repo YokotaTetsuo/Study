@@ -117,7 +117,10 @@ export function CommentThread({
                               disabled={
                                 edit.isPending ||
                                 editDraft.trim().length === 0 ||
-                                editDraft === c.content
+                                // サーバは CommentContent を trim 正規化する
+                                // ため、無変更判定も trim 基準で揃える
+                                // （前後空白だけの差分は no-op になる）。
+                                editDraft.trim() === c.content
                               }
                             >
                               保存
@@ -126,6 +129,7 @@ export function CommentThread({
                               size="small"
                               disabled={edit.isPending}
                               onClick={() => {
+                                edit.reset();
                                 setEditingId(null);
                               }}
                             >
@@ -150,8 +154,16 @@ export function CommentThread({
                       <Button
                         size="small"
                         aria-label="コメントを編集"
-                        disabled={remove.isPending}
+                        // 編集 in-flight 中（または別コメント編集中）は
+                        // 別コメントの編集開始を抑止する。
+                        disabled={
+                          remove.isPending ||
+                          edit.isPending ||
+                          editingId !== null
+                        }
                         onClick={() => {
+                          // 直前の編集失敗エラーを引きずらないようリセット。
+                          edit.reset();
                           setEditingId(c.id);
                           setEditDraft(c.content);
                         }}

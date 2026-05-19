@@ -320,10 +320,16 @@ export class DrizzleDocumentRepository implements DocumentRepository {
         await tx.insert(documentComments).values(commentsToInsert);
       }
       // 本文が編集された既存コメントだけ content/updated_at を更新する
-      // （未変更行への無駄な UPDATE を避ける）。
+      // （未変更行への無駄な UPDATE を避ける）。content だけでなく
+      // updatedAt も比較対象に含め、ドメインの no-op 保証
+      // （内容不変なら updatedAt も据え置き）と二重で整合させる。
       for (const c of aggregateComments) {
         const prev = persistedCommentById.get(c.id);
-        if (prev === undefined || prev.content === c.content) {
+        if (
+          prev === undefined ||
+          (prev.content === c.content &&
+            prev.updatedAt.getTime() === c.updatedAt.getTime())
+        ) {
           continue;
         }
         await tx
