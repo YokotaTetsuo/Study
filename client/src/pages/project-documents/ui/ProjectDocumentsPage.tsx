@@ -4,7 +4,6 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
-  Stack,
   Typography,
 } from '@mui/material';
 import { useNavigate, useParams } from '@tanstack/react-router';
@@ -16,6 +15,8 @@ import {
   CreateDocumentDialog,
   useDocuments,
 } from '../../../features/document';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { SectionCard } from '../../../shared/ui/SectionCard';
 
 export function ProjectDocumentsPage(): ReactElement {
   const { projectId } = useParams({
@@ -28,19 +29,17 @@ export function ProjectDocumentsPage(): ReactElement {
 
   return (
     <>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h5">文書</Typography>
-        <CreateDocumentButton
-          onClick={() => {
-            setCreateOpen(true);
-          }}
-        />
-      </Stack>
+      <PageHeader
+        title="文書"
+        subtitle="このプロジェクトの文書一覧"
+        actions={
+          <CreateDocumentButton
+            onClick={() => {
+              setCreateOpen(true);
+            }}
+          />
+        }
+      />
 
       {documents.isPending && <Typography>読み込み中…</Typography>}
       {documents.isError && (
@@ -48,30 +47,35 @@ export function ProjectDocumentsPage(): ReactElement {
       )}
       {documents.data !== undefined &&
         (documents.data.length === 0 ? (
-          <Typography color="text.secondary">
-            文書がありません。「＋ 追加」から作成してください。
-          </Typography>
+          <SectionCard>
+            <Typography color="text.secondary">
+              文書がありません。「＋ 追加」から作成してください。
+            </Typography>
+          </SectionCard>
         ) : (
-          <List>
-            {documents.data.map((d) => (
-              <ListItem key={d.id} disablePadding>
-                <ListItemButton
-                  onClick={() => {
-                    void navigate({
-                      to: '/projects/$projectId/documents/$documentId',
-                      params: { projectId, documentId: d.id },
-                    });
-                  }}
-                >
-                  <ListItemText
-                    primary={d.name}
-                    slotProps={{ primary: { variant: 'h6' } }}
-                    secondary={`版 ${String(d.versions.length)}`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
+          <SectionCard dense>
+            <List disablePadding>
+              {documents.data.map((d) => (
+                <ListItem key={d.id} disablePadding>
+                  <ListItemButton
+                    sx={{ borderRadius: 1, py: 1.5 }}
+                    onClick={() => {
+                      void navigate({
+                        to: '/projects/$projectId/documents/$documentId',
+                        params: { projectId, documentId: d.id },
+                      });
+                    }}
+                  >
+                    <ListItemText
+                      primary={d.name}
+                      slotProps={{ primary: { variant: 'h6' } }}
+                      secondary={`版 ${String(d.versions.length)}`}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </SectionCard>
         ))}
 
       <CreateDocumentDialog

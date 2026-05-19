@@ -1,18 +1,7 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Chip, Grid2, Stack, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
 import { useMe } from '../../../features/auth';
@@ -32,43 +21,14 @@ import { CommentThread } from '../../../features/version-comments';
 import {
   computePermissions,
   useVersionWorkflow,
-  VersionActions,
-  VersionStatusBadge,
 } from '../../../features/version-workflow';
 import { prefetchPdf } from '../../../shared/lib/pdf-cache';
+import { PageHeader } from '../../../shared/ui/PageHeader';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
+import { SectionCard } from '../../../shared/ui/SectionCard';
+import { reconcileSelectedVersion } from '../lib/select-version';
 
-// 行のうちプレビュー切替に使うセルの見た目（クリック可能を示す）。
-const previewCellSx = { cursor: 'pointer' } as const;
-
-/**
- * クリック/キーボード（Enter・Space）でその版のインラインプレビューに
- * 切り替えるセル。操作・表示セルとは別にすることで伝播衝突を構造で避ける。
- */
-function PreviewCell({
-  onSelect,
-  children,
-}: {
-  readonly onSelect: () => void;
-  readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <TableCell
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      sx={previewCellSx}
-    >
-      {children}
-    </TableCell>
-  );
-}
+import { VersionHistoryList } from './VersionHistoryList';
 
 export function DocumentDetailPage(): ReactElement {
   const { projectId, documentId } = useParams({
@@ -126,11 +86,15 @@ export function DocumentDetailPage(): ReactElement {
   ].some((m) => m.isError);
 
   const versions = document.data?.versions;
+  // 同一ルートで documentId だけが変わる遷移ではコンポーネントが
+  // アンマウントされず、前の文書で選んだ版番号が selected に残る。
+  // versions（文書切替で参照が変わる）に追従して整合させ、別文書に
+  // 存在しない版で PdfViewer/CommentThread を開かないようにする。
+  // setSelected の関数更新で prev を参照するため依存に selected は不要。
+  // 整合済み（prev を維持）のときは同一値を返し React がバイパスする
+  // ため無限ループにはならない。
   useEffect(() => {
-    const last = versions?.at(-1);
-    if (last !== undefined) {
-      setSelected((prev) => prev ?? last.versionNumber);
-    }
+    setSelected((prev) => reconcileSelectedVersion(prev, versions));
   }, [versions]);
 
   // 版切替を即時化するため近傍版のみ事前読み込みする。全版一括だと
@@ -166,34 +130,49 @@ export function DocumentDetailPage(): ReactElement {
 
   const d = document.data;
 
+  const openViewer = (versionNumber: number): void => {
+    void navigate({
+      to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
+      params: {
+        projectId: d.projectId,
+        documentId,
+        versionNumber: String(versionNumber),
+      },
+    });
+  };
+
   return (
     <>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 1 }}
-      >
-        <Typography variant="h5">{d.name}</Typography>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <RenameDocumentButton
-            onClick={() => {
-              setRenameOpen(true);
-            }}
-          />
-          <DeleteDocumentButton
-            onClick={() => {
-              setDeleteOpen(true);
-            }}
-          />
-        </Stack>
-      </Stack>
-
-      {d.officialVersionNumber !== null && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          正式版: v{d.officialVersionNumber}
-        </Alert>
-      )}
+      <PageHeader
+        title={d.name}
+        subtitle={
+          d.officialVersionNumber !== null ? (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Chip
+                size="small"
+                color="primary"
+                label={`正式版 v${String(d.officialVersionNumber)}`}
+              />
+            </Stack>
+          ) : (
+            '版を選択するとプレビューとコメントが右側に表示されます'
+          )
+        }
+        actions={
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <RenameDocumentButton
+              onClick={() => {
+                setRenameOpen(true);
+              }}
+            />
+            <DeleteDocumentButton
+              onClick={() => {
+                setDeleteOpen(true);
+              }}
+            />
+          </Stack>
+        }
+      />
 
       {workflowFailed && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -209,115 +188,89 @@ export function DocumentDetailPage(): ReactElement {
         </Alert>
       )}
 
-      <UploadDropzone
-        onUpload={(f) => {
-          upload.mutate(f);
-        }}
-        pending={upload.isPending}
-        succeeded={upload.isSuccess}
-        failed={upload.isError}
-        onResetStatus={() => {
-          upload.reset();
-        }}
-      />
+      <Grid2 container spacing={3} alignItems="stretch">
+        {/* 左カラム: アップロード + 版履歴/操作 */}
+        <Grid2 size={{ xs: 12, lg: 4 }}>
+          <Stack spacing={3}>
+            <SectionCard title="新しい版をアップロード">
+              <UploadDropzone
+                onUpload={(f) => {
+                  upload.mutate(f);
+                }}
+                pending={upload.isPending}
+                succeeded={upload.isSuccess}
+                failed={upload.isError}
+                onResetStatus={() => {
+                  upload.reset();
+                }}
+              />
+            </SectionCard>
 
-      <Typography variant="h6" sx={{ mt: 2 }}>
-        版履歴
-      </Typography>
-      {d.versions.length === 0 ? (
-        <Typography color="text.secondary">まだ版がありません</Typography>
-      ) : (
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>版</TableCell>
-              <TableCell>状態</TableCell>
-              <TableCell>作成日時</TableCell>
-              <TableCell>操作</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {d.versions.map((v) => {
-              const selectVersion = (): void => {
-                setSelected(v.versionNumber);
-              };
-              return (
-                <TableRow
-                  key={v.versionNumber}
-                  selected={selected === v.versionNumber}
-                >
-                  <PreviewCell onSelect={selectVersion}>
-                    v{v.versionNumber}
-                  </PreviewCell>
-                  <PreviewCell onSelect={selectVersion}>
-                    <VersionStatusBadge status={v.status} />
-                  </PreviewCell>
-                  <PreviewCell onSelect={selectVersion}>
-                    {new Date(v.createdAt).toLocaleString('ja-JP')}
-                  </PreviewCell>
-                  <TableCell>
-                    <VersionActions
-                      status={v.status}
-                      pending={workflowPending}
-                      permissions={permissions}
-                      onSubmit={() => {
-                        runAction(workflow.submit, v.versionNumber);
-                      }}
-                      onApprove={() => {
-                        runAction(workflow.approve, v.versionNumber);
-                      }}
-                      onRequestChanges={() => {
-                        runAction(workflow.requestChanges, v.versionNumber);
-                      }}
-                      onReject={() => {
-                        runAction(workflow.reject, v.versionNumber);
-                      }}
-                      onPublish={() => {
-                        runAction(workflow.publish, v.versionNumber);
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        void navigate({
-                          to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
-                          params: {
-                            projectId: d.projectId,
-                            documentId,
-                            versionNumber: String(v.versionNumber),
-                          },
-                        });
-                      }}
-                    >
-                      表示
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
+            <SectionCard title="版履歴">
+              <VersionHistoryList
+                versions={d.versions}
+                selected={selected}
+                permissions={permissions}
+                workflowPending={workflowPending}
+                onSelect={setSelected}
+                onOpenViewer={openViewer}
+                onSubmit={(n) => {
+                  runAction(workflow.submit, n);
+                }}
+                onApprove={(n) => {
+                  runAction(workflow.approve, n);
+                }}
+                onRequestChanges={(n) => {
+                  runAction(workflow.requestChanges, n);
+                }}
+                onReject={(n) => {
+                  runAction(workflow.reject, n);
+                }}
+                onPublish={(n) => {
+                  runAction(workflow.publish, n);
+                }}
+              />
+            </SectionCard>
+          </Stack>
+        </Grid2>
 
-      {selected !== null && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            v{selected} のプレビュー
-          </Typography>
-          <PdfViewer src={versionFileUrl(documentId, selected)} />
-          <Typography variant="h6" sx={{ mt: 3 }} gutterBottom>
-            v{selected} のコメント
-          </Typography>
-          <CommentThread
-            documentId={documentId}
-            versionNumber={selected}
-            currentUserId={me.data?.id}
-          />
-        </Box>
-      )}
+        {/* 右カラム: プレビュー（主役）+ コメント */}
+        <Grid2 size={{ xs: 12, lg: 8 }}>
+          {selected === null ? (
+            <SectionCard fullHeight>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 320,
+                  color: 'text.secondary',
+                }}
+              >
+                <Typography>
+                  左の版履歴から版を選ぶとプレビューを表示します
+                </Typography>
+              </Box>
+            </SectionCard>
+          ) : (
+            <Stack spacing={3}>
+              <SectionCard title={`v${String(selected)} のプレビュー`}>
+                <PdfViewer
+                  src={versionFileUrl(documentId, selected)}
+                  fitToWidth
+                />
+              </SectionCard>
+              <SectionCard title={`v${String(selected)} のコメント`}>
+                <CommentThread
+                  documentId={documentId}
+                  versionNumber={selected}
+                  currentUserId={me.data?.id}
+                />
+              </SectionCard>
+            </Stack>
+          )}
+        </Grid2>
+      </Grid2>
 
       <RenameDocumentDialog
         documentId={documentId}

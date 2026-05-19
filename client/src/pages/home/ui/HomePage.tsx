@@ -1,8 +1,10 @@
-import { Link as MuiLink, Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
 import { useMe } from '../../../features/auth';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { SectionCard } from '../../../shared/ui/SectionCard';
 
 export function HomePage(): ReactElement {
   const me = useMe();
@@ -15,12 +17,18 @@ export function HomePage(): ReactElement {
 
   return (
     <>
-      <Typography gutterBottom>
-        ようこそ、{me.data.displayName} さん（{me.data.email}）。
-      </Typography>
-      <MuiLink component={Link} to="/projects">
-        プロジェクト一覧へ
-      </MuiLink>
+      <PageHeader
+        title="ホーム"
+        subtitle={`ようこそ、${me.data.displayName} さん（${me.data.email}）`}
+      />
+      <SectionCard>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          プロジェクトを選択して文書のレビューを開始しましょう。
+        </Typography>
+        <Button component={Link} to="/projects" variant="contained">
+          プロジェクト一覧へ
+        </Button>
+      </SectionCard>
     </>
   );
 }

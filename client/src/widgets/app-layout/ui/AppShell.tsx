@@ -82,30 +82,54 @@ export function AppShell(): ReactElement {
   // 「戻る」は履歴ではなくパンくず上の親階層（末尾の 1 つ手前）。
   // 親が無い（最上位 = trail が 1 要素）なら null。
   const parentCrumb = trail[trail.length - 2] ?? null;
-  // 版プレビュー専用ページは PDF を主役にするため幅制約を外す。
+  // PDF を主役にするページ（版プレビュー専用 / 文書詳細）は横方向の
+  // レイアウトを活かすため幅制約を外し、画面いっぱいに広げる。
   const wide =
     leafRouteId ===
-    '/projects/$projectId/documents/$documentId/versions/$versionNumber';
+      '/projects/$projectId/documents/$documentId/versions/$versionNumber' ||
+    leafRouteId === '/projects/$projectId/documents/$documentId';
 
   return (
-    <Box>
-      <AppBar position="static">
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="sticky"
+        color="default"
+        elevation={0}
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
           <Typography
             component={Link}
             to="/"
             variant="h6"
-            sx={{ color: 'inherit', textDecoration: 'none' }}
+            sx={{
+              color: 'inherit',
+              textDecoration: 'none',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+            }}
           >
             PDF Review
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography>
-              ログイン中: {me.data.displayName}（{me.data.email}）
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}
+          >
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              noWrap
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
+              {me.data.displayName}（{me.data.email}）
             </Typography>
             <Button
               color="inherit"
               variant="outlined"
+              size="small"
               disabled={logout.isPending}
               onClick={() => {
                 logout.mutate(undefined, {
@@ -120,8 +144,8 @@ export function AppShell(): ReactElement {
           </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth={wide ? false : 'md'} sx={{ py: 3 }}>
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Container maxWidth={wide ? 'xl' : 'md'} sx={{ py: 4 }}>
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton parent={parentCrumb} />
           <AppBreadcrumbs trail={trail} />
         </Box>
