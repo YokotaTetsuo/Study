@@ -11,6 +11,7 @@ import { DrizzleUserRepository } from '../auth/adapters/gateways/drizzle-user-re
 import { RegisterUseCase } from '../auth/application/register-usecase';
 import { DrizzleDocumentRepository } from '../document/adapters/gateways/drizzle-document-repository';
 import { S3FileStorage } from '../document/adapters/gateways/s3-file-storage';
+import { SqlAuthorDirectory } from '../document/adapters/gateways/sql-author-directory';
 import { SqlProjectAccess } from '../document/adapters/gateways/sql-project-access';
 import { AddCommentUseCase } from '../document/application/add-comment-usecase';
 import { CreateDocumentUseCase } from '../document/application/create-document-usecase';
@@ -108,6 +109,7 @@ async function run(dbClient: DbClient): Promise<void> {
   const userDirectory = new DrizzleUserDirectory(dbClient.db);
   const documents = new DrizzleDocumentRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
+  const authorDirectory = new SqlAuthorDirectory(dbClient.sql);
   const s3Client = createS3Client(env);
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   await ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
@@ -136,6 +138,7 @@ async function run(dbClient: DbClient): Promise<void> {
   const addComment = new AddCommentUseCase({
     documents,
     projectAccess,
+    authorDirectory,
     idGenerator,
     clock,
   });

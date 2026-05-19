@@ -37,6 +37,7 @@ const COMMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789C';
 const COMMENT_RESULT: CommentResult = {
   id: COMMENT_ID,
   authorId: USER_ID,
+  authorDisplayName: '山田 太郎',
   content: '配置を見直してください',
   createdAt: dayjs('2026-05-18T00:00:00.000Z'),
   updatedAt: dayjs('2026-05-18T00:00:00.000Z'),
@@ -321,7 +322,11 @@ describe('document controller', () => {
 
     expect(res.status).toBe(201);
     const body: unknown = await res.json();
-    expect(body).toMatchObject({ id: COMMENT_ID, authorId: USER_ID });
+    expect(body).toMatchObject({
+      id: COMMENT_ID,
+      authorId: USER_ID,
+      authorDisplayName: '山田 太郎',
+    });
   });
 
   it('should require authentication to add a comment (401)', async () => {

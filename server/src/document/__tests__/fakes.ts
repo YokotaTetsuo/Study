@@ -4,6 +4,7 @@ import type { Dayjs } from 'dayjs';
 import type { Clock } from '../../shared-kernel/clock';
 import type { FileStorage } from '../../shared-kernel/file-storage';
 import type { IdGenerator } from '../../shared-kernel/id-generator';
+import type { AuthorDirectory } from '../application/author-directory';
 import type { ProjectAccess } from '../application/project-access';
 import { Document } from '../domain/document';
 import { DocumentId } from '../domain/document-id';
@@ -19,6 +20,8 @@ export const OUTSIDER_ID = '01HQ8ZK9PRSTVWXYZ23456789D';
 // もう 1 人のメンバー（コメント著者以外による削除の検証に使う）。
 export const OTHER_MEMBER_ID = '01HQ8ZK9PRSTVWXYZ23456789E';
 export const COMMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789F';
+// コメント著者の表示名解決（authorDisplayName）検証に使う固定値。
+export const MEMBER_DISPLAY_NAME = '山田 太郎';
 
 export const fixedClock: Clock = { now: () => FIXED_NOW };
 
@@ -124,5 +127,30 @@ export class FakeProjectAccess implements ProjectAccess {
     return Promise.resolve(
       projectId === this.#projectId && this.#members.has(userId),
     );
+  }
+}
+
+/**
+ * 与えた userId→表示名の対応だけを解決する AuthorDirectory。
+ * 対応に無い ID は Map に含めず、未解決フォールバック（null）を再現する。
+ */
+export class FakeAuthorDirectory implements AuthorDirectory {
+  readonly #displayNames: ReadonlyMap<string, string>;
+
+  constructor(displayNames: Readonly<Record<string, string>>) {
+    this.#displayNames = new Map(Object.entries(displayNames));
+  }
+
+  findDisplayNames(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>> {
+    const result = new Map<string, string>();
+    for (const id of userIds) {
+      const name = this.#displayNames.get(id);
+      if (name !== undefined) {
+        result.set(id, name);
+      }
+    }
+    return Promise.resolve(result);
   }
 }

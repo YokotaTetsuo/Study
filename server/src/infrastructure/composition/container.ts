@@ -7,6 +7,7 @@ import { LogoutUseCase } from '../../auth/application/logout-usecase';
 import { RegisterUseCase } from '../../auth/application/register-usecase';
 import { DrizzleDocumentRepository } from '../../document/adapters/gateways/drizzle-document-repository';
 import { S3FileStorage } from '../../document/adapters/gateways/s3-file-storage';
+import { SqlAuthorDirectory } from '../../document/adapters/gateways/sql-author-directory';
 import { SqlProjectAccess } from '../../document/adapters/gateways/sql-project-access';
 import { AddCommentUseCase } from '../../document/application/add-comment-usecase';
 import { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
@@ -79,6 +80,7 @@ export function createContainer(env: Env): Container {
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   const documents = new DrizzleDocumentRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
+  const authorDirectory = new SqlAuthorDirectory(dbClient.sql);
   const transactor = new DrizzleTransactor(dbClient.db);
   const ready = ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
 
@@ -130,13 +132,19 @@ export function createContainer(env: Env): Container {
       addComment: new AddCommentUseCase({
         documents,
         projectAccess,
+        authorDirectory,
         idGenerator,
         clock,
       }),
-      listComments: new ListCommentsUseCase({ documents, projectAccess }),
+      listComments: new ListCommentsUseCase({
+        documents,
+        projectAccess,
+        authorDirectory,
+      }),
       editComment: new EditCommentUseCase({
         documents,
         projectAccess,
+        authorDirectory,
         clock,
       }),
       deleteComment: new DeleteCommentUseCase({ documents, projectAccess }),

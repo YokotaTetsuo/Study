@@ -4,6 +4,7 @@ import type { Clock } from '../../shared-kernel/clock';
 import {
   COMMENT_ID,
   DOCUMENT_ID,
+  FakeAuthorDirectory,
   FakeProjectAccess,
   FIXED_NOW,
   InMemoryDocumentRepository,
@@ -61,6 +62,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -86,6 +88,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -107,6 +110,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -132,6 +136,7 @@ describe('EditCommentUseCase', () => {
         MEMBER_ID,
         OTHER_MEMBER_ID,
       ]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -155,6 +160,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -175,6 +181,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 
@@ -194,6 +201,7 @@ describe('EditCommentUseCase', () => {
     const useCase = new EditCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
       clock: editClock,
     });
 

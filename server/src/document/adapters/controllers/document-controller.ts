@@ -99,6 +99,7 @@ function serializeComment(result: CommentResult): Comment {
   return {
     id: result.id,
     authorId: result.authorId,
+    authorDisplayName: result.authorDisplayName,
     content: result.content,
     createdAt: result.createdAt.toISOString(),
     updatedAt: result.updatedAt.toISOString(),

@@ -6,6 +6,7 @@ import { DocumentId } from '../domain/document-id';
 import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import type { DocumentRepository } from '../domain/document-repository';
 
+import type { AuthorDirectory } from './author-directory';
 import { toCommentResult } from './comment-result';
 import type { CommentResult } from './comment-result';
 import { NotAuthorizedError } from './not-authorized-error';
@@ -22,6 +23,7 @@ export interface EditCommentCommand {
 interface Deps {
   readonly documents: DocumentRepository;
   readonly projectAccess: ProjectAccess;
+  readonly authorDirectory: AuthorDirectory;
   readonly clock: Clock;
 }
 
@@ -32,11 +34,13 @@ interface Deps {
 export class EditCommentUseCase {
   readonly #documents: DocumentRepository;
   readonly #projectAccess: ProjectAccess;
+  readonly #authorDirectory: AuthorDirectory;
   readonly #clock: Clock;
 
   constructor(deps: Deps) {
     this.#documents = deps.documents;
     this.#projectAccess = deps.projectAccess;
+    this.#authorDirectory = deps.authorDirectory;
     this.#clock = deps.clock;
   }
 
@@ -71,6 +75,19 @@ export class EditCommentUseCase {
     if (changed) {
       await this.#documents.save(document);
     }
-    return toCommentResult(comment);
+    // 表示名は補助情報。編集の永続化を HTTP 失敗させないため、ディレクトリ
+    // 解決の失敗は握り潰して null フォールバックする（AddCommentUseCase と
+    // 同一方針）。
+    let displayName: string | null = null;
+    try {
+      const displayNames = await this.#authorDirectory.findDisplayNames([
+        comment.authorId.value,
+      ]);
+      displayName = displayNames.get(comment.authorId.value) ?? null;
+    } catch (error) {
+      // eslint-disable-next-line no-console -- 補助情報の解決失敗を可視化
+      console.warn('著者表示名の解決に失敗しました（null で続行）:', error);
+    }
+    return toCommentResult(comment, displayName);
   }
 }
