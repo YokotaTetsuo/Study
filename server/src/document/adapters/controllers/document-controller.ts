@@ -19,6 +19,7 @@ import type { AddCommentUseCase } from '../../application/add-comment-usecase';
 import type { CommentResult } from '../../application/comment-result';
 import type { CreateDocumentUseCase } from '../../application/create-document-usecase';
 import type { DeleteCommentUseCase } from '../../application/delete-comment-usecase';
+import type { DeleteDocumentUseCase } from '../../application/delete-document-usecase';
 import type { DocumentResult } from '../../application/document-result';
 import type { GetDocumentUseCase } from '../../application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../application/get-version-file-usecase';
@@ -65,6 +66,7 @@ interface DocumentDeps {
   readonly listDocuments: Pick<ListDocumentsUseCase, 'execute'>;
   readonly getDocument: Pick<GetDocumentUseCase, 'execute'>;
   readonly renameDocument: Pick<RenameDocumentUseCase, 'execute'>;
+  readonly deleteDocument: Pick<DeleteDocumentUseCase, 'execute'>;
   readonly uploadVersion: Pick<UploadVersionUseCase, 'execute'>;
   readonly getVersionFile: Pick<GetVersionFileUseCase, 'execute'>;
   readonly addComment: Pick<AddCommentUseCase, 'execute'>;
@@ -174,6 +176,16 @@ const renameRouteDef = createRoute({
   responses: {
     ...errorResponses,
     200: { description: '変更成功' as const, content: documentContent },
+  },
+});
+
+const deleteRouteDef = createRoute({
+  method: 'delete',
+  path: '/documents/{documentId}',
+  request: { params: documentIdParam },
+  responses: {
+    ...errorResponses,
+    204: { description: '削除成功' as const },
   },
 });
 
@@ -377,6 +389,22 @@ export function createDocumentApp(deps: DocumentDeps) {
           name: c.req.valid('json').name,
         });
         return c.json(serialize(result), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(deleteRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        await deps.deleteDocument.execute({
+          documentId: c.req.valid('param').documentId,
+          actingUserId,
+        });
+        return c.body(null, 204);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);

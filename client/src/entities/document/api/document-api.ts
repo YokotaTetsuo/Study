@@ -193,6 +193,14 @@ export async function addComment(
   );
 }
 
+export function deleteDocument(documentId: string): Promise<void> {
+  return requestNoContent(
+    `/documents/${documentId}`,
+    { method: 'DELETE' },
+    204,
+  );
+}
+
 export function deleteComment(
   documentId: string,
   versionNumber: number,

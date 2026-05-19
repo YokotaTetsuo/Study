@@ -9,6 +9,7 @@ import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import {
   DOCUMENTS_QUERY_KEY,
   createDocument,
+  deleteDocument,
   documentQueryOptions,
   documentsByProjectQueryOptions,
   renameDocument,
@@ -50,6 +51,16 @@ export function useRenameDocument(
     onSuccess: () => {
       // 一覧・詳細双方に名前変更を反映する（DOCUMENTS_QUERY_KEY 配下で
       // project 一覧・detail の両クエリが無効化される）。
+      void qc.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteDocument(): UseMutationResult<void, Error, string> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) => deleteDocument(documentId),
+    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
     },
   });

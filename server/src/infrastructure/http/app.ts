@@ -11,6 +11,7 @@ import { createDocumentApp } from '../../document/adapters/controllers/document-
 import type { AddCommentUseCase } from '../../document/application/add-comment-usecase';
 import type { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
 import type { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
+import type { DeleteDocumentUseCase } from '../../document/application/delete-document-usecase';
 import type { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import type { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
@@ -60,6 +61,7 @@ interface AppDeps {
     readonly listDocuments: ListDocumentsUseCase;
     readonly getDocument: GetDocumentUseCase;
     readonly renameDocument: RenameDocumentUseCase;
+    readonly deleteDocument: DeleteDocumentUseCase;
     readonly uploadVersion: UploadVersionUseCase;
     readonly getVersionFile: GetVersionFileUseCase;
     readonly addComment: AddCommentUseCase;

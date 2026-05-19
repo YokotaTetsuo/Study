@@ -11,6 +11,7 @@ import { SqlProjectAccess } from '../../document/adapters/gateways/sql-project-a
 import { AddCommentUseCase } from '../../document/application/add-comment-usecase';
 import { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
 import { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
+import { DeleteDocumentUseCase } from '../../document/application/delete-document-usecase';
 import { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
@@ -108,6 +109,7 @@ export function createContainer(env: Env): Container {
       listDocuments: new ListDocumentsUseCase({ documents, projectAccess }),
       getDocument: new GetDocumentUseCase({ documents, projectAccess }),
       renameDocument: new RenameDocumentUseCase({ documents, projectAccess }),
+      deleteDocument: new DeleteDocumentUseCase({ documents, projectAccess }),
       uploadVersion: new UploadVersionUseCase({
         documents,
         projectAccess,

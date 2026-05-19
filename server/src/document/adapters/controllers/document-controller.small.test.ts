@@ -61,6 +61,7 @@ function deps(
     listDocuments: { execute: vi.fn().mockResolvedValue([RESULT]) },
     getDocument: { execute: vi.fn().mockResolvedValue(RESULT) },
     renameDocument: { execute: vi.fn().mockResolvedValue(RESULT) },
+    deleteDocument: { execute: vi.fn().mockResolvedValue(undefined) },
     uploadVersion: { execute: vi.fn().mockResolvedValue(RESULT) },
     getVersionFile: {
       execute: vi.fn().mockResolvedValue({ data: new Uint8Array([1, 2, 3]) }),
@@ -366,6 +367,70 @@ describe('document controller', () => {
     expect(res.headers.get('content-type')).toContain(
       'application/problem+json',
     );
+  });
+
+  it('should delete a document and return 204', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=a']]),
+      }),
+    );
+
+    expect(res.status).toBe(204);
+  });
+
+  it('should require authentication to delete a document (401)', async () => {
+    const app = createDocumentApp(deps(anon));
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}`, { method: 'DELETE' }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should map NotAuthorizedError to 403 on delete', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        deleteDocument: {
+          execute: vi.fn().mockRejectedValue(new NotAuthorizedError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=a']]),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
+  });
+
+  it('should map DocumentNotFoundError to 404 on delete', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        deleteDocument: {
+          execute: vi.fn().mockRejectedValue(new DocumentNotFoundError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      new Request(`http://local/documents/${DOC_ID}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=a']]),
+      }),
+    );
+
+    expect(res.status).toBe(404);
   });
 
   it('should reject a comment on a non-positive version (400)', async () => {

@@ -198,6 +198,36 @@ describe('DrizzleDocumentRepository comments', () => {
     expect(found?.commentsOf(1)[0]?.content.value).toBe('先のコメント');
   });
 
+  it('should cascade-delete versions and comments when the document is deleted', async () => {
+    const doc = docWithVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(USER_ID),
+      content: new CommentContent('連鎖削除される'),
+      createdAt: NOW,
+    });
+    await repo.save(doc);
+
+    await repo.delete(new DocumentId(DOC_ID));
+
+    // 文書が消え、版・コメントも DB の FK ON DELETE CASCADE で残らない。
+    expect(await repo.findById(new DocumentId(DOC_ID))).toBeNull();
+    const versionRows = await client.sql`
+      select 1 from document_versions where document_id = ${DOC_ID}
+    `;
+    expect(versionRows).toHaveLength(0);
+    const commentRows = await client.sql`
+      select 1 from document_comments where document_id = ${DOC_ID}
+    `;
+    expect(commentRows).toHaveLength(0);
+  });
+
+  it('should not throw when deleting a non-existent document', async () => {
+    await expect(
+      repo.delete(new DocumentId('01HQ8ZK9PRSTVWXYZ23456789Z')),
+    ).resolves.not.toThrow();
+  });
+
   it('should persist a comment deletion on the next save', async () => {
     const doc = docWithVersion();
     doc.addComment(1, {
