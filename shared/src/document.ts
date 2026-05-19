@@ -24,10 +24,12 @@ export const createDocumentRequestSchema = z.object({
 });
 export type CreateDocumentRequest = z.infer<typeof createDocumentRequestSchema>;
 
-// 文書名の変更リクエスト。createDocumentRequestSchema の name と同条件
-// （1〜200 文字）。domain DocumentName も trim 後に同条件で検証する。
+// 文書名の変更リクエスト。入力は前後空白を正規化してから 1〜200 文字を
+// 判定する。domain DocumentName も trim 後に同条件で検証するため判定が
+// 一致し、「空白のみ送信が Zod を通過して domain で例外（400）」を防ぐ
+// （addCommentRequestSchema と同じ方針）。
 export const renameDocumentRequestSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().trim().min(1).max(200),
 });
 export type RenameDocumentRequest = z.infer<typeof renameDocumentRequestSchema>;
 

@@ -123,6 +123,67 @@ describe('RenameDocumentDialog', () => {
     );
   });
 
+  it('should resync the input to the latest currentName when it changes while open', () => {
+    const { rerender } = render(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="設計書"
+        open
+        onClose={vi.fn()}
+      />,
+      { wrapper: wrapper() },
+    );
+
+    rerender(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="要件定義書"
+        open
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText(/新しい文書名/).getAttribute('value')).toBe(
+      '要件定義書',
+    );
+  });
+
+  it('should reinitialize the input from currentName when reopened after typing', () => {
+    const { rerender } = render(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="設計書"
+        open
+        onClose={vi.fn()}
+      />,
+      { wrapper: wrapper() },
+    );
+
+    fireEvent.change(screen.getByLabelText(/新しい文書名/), {
+      target: { value: '途中入力' },
+    });
+    rerender(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="設計書"
+        open={false}
+        onClose={vi.fn()}
+      />,
+    );
+    rerender(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="設計書"
+        open
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText(/新しい文書名/).getAttribute('value')).toBe(
+      '設計書',
+    );
+  });
+
   it('should close without a request when cancelled', () => {
     const onClose = vi.fn();
     render(

@@ -7,7 +7,7 @@ import {
   DialogTitle,
   TextField,
 } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { useRenameDocument } from '../model/use-documents';
@@ -34,6 +34,15 @@ export function RenameDocumentDialog({
 }: RenameDocumentDialogProps): ReactElement {
   const rename = useRenameDocument(documentId);
   const [name, setName] = useState(currentName);
+
+  // useState(currentName) は初回マウント時の初期値しか反映しない。
+  // ダイアログを開いた時／対象文書（currentName）が変わった時に
+  // 入力を最新の現在名へ追従させる（再マウントなしで常に最新を初期値に）。
+  useEffect(() => {
+    if (open) {
+      setName(currentName);
+    }
+  }, [open, currentName]);
 
   const close = (): void => {
     setName(currentName);
