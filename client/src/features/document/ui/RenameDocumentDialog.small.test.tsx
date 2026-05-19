@@ -95,6 +95,34 @@ describe('RenameDocumentDialog', () => {
     expect(init?.body).toBe(JSON.stringify({ name: '要件定義書' }));
   });
 
+  it('should reset the typed value on success so a still-mounted dialog does not keep stale input', async () => {
+    const onClose = vi.fn();
+    render(
+      <RenameDocumentDialog
+        documentId={DOC_ID}
+        currentName="設計書"
+        open
+        onClose={onClose}
+      />,
+      { wrapper: wrapper() },
+    );
+
+    fireEvent.change(screen.getByLabelText(/新しい文書名/), {
+      target: { value: '要件定義書' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '変更' }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    // close() 経由でリセットされるため、入力は元の currentName に戻る
+    // （成功時に onClose を直呼びすると '要件定義書' が残ってしまう回帰）。
+    expect(screen.getByLabelText(/新しい文書名/).getAttribute('value')).toBe(
+      '設計書',
+    );
+  });
+
   it('should close without a request when cancelled', () => {
     const onClose = vi.fn();
     render(

@@ -50,7 +50,7 @@ export function RenameDocumentDialog({
             { name },
             {
               onSuccess: () => {
-                onClose();
+                close();
               },
             },
           );
