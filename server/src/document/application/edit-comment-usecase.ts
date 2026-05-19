@@ -56,7 +56,7 @@ export class EditCommentUseCase {
       throw new NotAuthorizedError();
     }
     // 版/コメント未存在・著者違いは集約が各エラーを送出する。
-    const comment = document.editComment(
+    const { comment, changed } = document.editComment(
       command.versionNumber,
       new CommentId(command.commentId),
       {
@@ -65,7 +65,12 @@ export class EditCommentUseCase {
         editedAt: this.#clock.now(),
       },
     );
-    await this.#documents.save(document);
+    // 正規化後本文が同一なら no-op（updatedAt 不変）。保存すると
+    // revision だけが進み、不要 UPDATE・競合（StaleDocumentError）を
+    // 招くため、変更があった場合のみ永続化する。
+    if (changed) {
+      await this.#documents.save(document);
+    }
     return toCommentResult(comment);
   }
 }

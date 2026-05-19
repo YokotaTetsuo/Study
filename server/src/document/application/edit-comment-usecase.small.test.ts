@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { Clock } from '../../shared-kernel/clock';
 import {
@@ -77,6 +77,50 @@ describe('EditCommentUseCase', () => {
     expect(result.createdAt.valueOf()).toBe(FIXED_NOW.valueOf());
     const persisted = await documents.findById(new DocumentId(DOCUMENT_ID));
     expect(persisted?.commentsOf(1)[0]?.content.value).toBe('誤記を修正');
+  });
+
+  it('should persist when the edit actually changes the content', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithComment(documents);
+    const saveSpy = vi.spyOn(documents, 'save');
+    const useCase = new EditCommentUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      clock: editClock,
+    });
+
+    await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      commentId: COMMENT_ID,
+      actingUserId: MEMBER_ID,
+      content: '誤記を修正',
+    });
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not persist when the normalized content is unchanged (no-op edit)', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithComment(documents);
+    const saveSpy = vi.spyOn(documents, 'save');
+    const useCase = new EditCommentUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      clock: editClock,
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      commentId: COMMENT_ID,
+      actingUserId: MEMBER_ID,
+      content: '  誤記あり  ',
+    });
+
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(result.content).toBe('誤記あり');
+    expect(result.updatedAt.valueOf()).toBe(FIXED_NOW.valueOf());
   });
 
   it('should forbid a member who is not the author', async () => {
