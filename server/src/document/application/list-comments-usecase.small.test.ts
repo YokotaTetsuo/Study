@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   COMMENT_ID,
@@ -84,6 +84,10 @@ async function seedDocWithTwoCommentsBySameAuthor(
 }
 
 describe('ListCommentsUseCase', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should list comments of a version for a member', async () => {
     const documents = new InMemoryDocumentRepository();
     await seedDocWithComment(documents);
@@ -130,6 +134,7 @@ describe('ListCommentsUseCase', () => {
   it('should list comments with null display names when the directory throws', async () => {
     const documents = new InMemoryDocumentRepository();
     await seedDocWithTwoCommentsBySameAuthor(documents);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const useCase = new ListCommentsUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
