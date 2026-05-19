@@ -94,6 +94,17 @@ export function VersionHistoryList({
               <Typography variant="caption" color="text.secondary">
                 {new Date(v.createdAt).toLocaleString('ja-JP')}
               </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+              >
+                {v.latestCommentAt !== null
+                  ? `最終コメント: ${new Date(v.latestCommentAt).toLocaleString(
+                      'ja-JP',
+                    )}`
+                  : 'コメントなし'}
+              </Typography>
             </ListItemButton>
             <Stack
               direction="row"

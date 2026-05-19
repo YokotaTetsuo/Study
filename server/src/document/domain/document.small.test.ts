@@ -510,3 +510,97 @@ describe('Document rename', () => {
     expect(doc.name.value).toBe('設計書');
   });
 });
+
+describe('Document version latestCommentAt', () => {
+  it('should be null for a version without comments', () => {
+    const doc = docWithOneVersion();
+
+    expect(doc.versions[0]?.latestCommentAt).toBeNull();
+  });
+
+  it('should be the createdAt of the most recent comment', () => {
+    const doc = docWithOneVersion();
+    const earlier = NOW;
+    const later = NOW.add(1, 'hour');
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('先のコメント'),
+      createdAt: earlier,
+    });
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_B),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('後のコメント'),
+      createdAt: later,
+    });
+
+    expect(doc.versions[0]?.latestCommentAt?.valueOf()).toBe(later.valueOf());
+  });
+
+  it('should not advance when a comment is edited (createdAt-based)', () => {
+    const doc = docWithOneVersion();
+    const editedAt = NOW.add(2, 'hour');
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('編集前'),
+      createdAt: NOW,
+    });
+
+    doc.editComment(1, new CommentId(COMMENT_A), {
+      content: new CommentContent('編集後'),
+      requesterId: new CommentAuthorId(AUTHOR_ID),
+      editedAt,
+    });
+
+    expect(doc.versions[0]?.latestCommentAt?.valueOf()).toBe(NOW.valueOf());
+  });
+
+  it('should track per version independently after reconstruct', () => {
+    const earlier = NOW;
+    const later = NOW.add(3, 'hour');
+    const doc = Document.reconstruct({
+      id: new DocumentId(DOC_ID),
+      projectId: new DocumentProjectId(PROJ_ID),
+      name: new DocumentName('設計書'),
+      createdAt: NOW,
+      versionsData: [
+        {
+          versionNumber: 1,
+          status: 'draft',
+          storageKey: 'documents/d/a.pdf',
+          uploadedBy: USER_ID,
+          createdAt: NOW,
+          comments: [
+            {
+              id: COMMENT_A,
+              authorId: AUTHOR_ID,
+              content: '先のコメント',
+              createdAt: earlier,
+              updatedAt: earlier,
+            },
+            {
+              id: COMMENT_B,
+              authorId: AUTHOR_ID,
+              content: '後のコメント',
+              createdAt: later,
+              updatedAt: later,
+            },
+          ],
+        },
+        {
+          versionNumber: 2,
+          status: 'draft',
+          storageKey: 'documents/d/b.pdf',
+          uploadedBy: USER_ID,
+          createdAt: NOW,
+          comments: [],
+        },
+      ],
+    });
+
+    expect(doc.versions[0]?.latestCommentAt?.valueOf()).toBe(later.valueOf());
+    expect(doc.versions[1]?.latestCommentAt).toBeNull();
+  });
+});

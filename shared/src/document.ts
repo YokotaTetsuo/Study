@@ -38,6 +38,9 @@ export const documentVersionSchema = z.object({
   status: versionStatusSchema,
   uploadedBy: z.string(),
   createdAt: z.string().datetime(),
+  // この版に付いた最新コメントの作成時刻。コメントが無い版は null
+  // （版履歴一覧でフォールバック表示する契約）。
+  latestCommentAt: z.string().datetime().nullable(),
 });
 export type DocumentVersion = z.infer<typeof documentVersionSchema>;
 

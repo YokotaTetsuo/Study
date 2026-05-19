@@ -55,6 +55,7 @@ function serialize(result: DocumentResult): DocumentResponse {
       status: versionStatusSchema.parse(v.status),
       uploadedBy: v.uploadedBy,
       createdAt: v.createdAt.toISOString(),
+      latestCommentAt: v.latestCommentAt?.toISOString() ?? null,
     })),
   };
 }
