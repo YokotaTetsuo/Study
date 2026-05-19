@@ -17,10 +17,8 @@ import type { WorkflowPermissions } from '../../../features/version-workflow';
 
 interface VersionHistoryListProps {
   readonly versions: readonly DocumentVersion[];
-  readonly selected: number | null;
   readonly permissions: WorkflowPermissions;
   readonly workflowPending: boolean;
-  readonly onSelect: (versionNumber: number) => void;
   readonly onOpenViewer: (versionNumber: number) => void;
   readonly onSubmit: (versionNumber: number) => void;
   readonly onApprove: (versionNumber: number) => void;
@@ -30,16 +28,15 @@ interface VersionHistoryListProps {
 }
 
 /**
- * 版履歴の縦リスト（左カラム用）。各行はクリックで右の
- * インラインプレビューに切り替わり、状態バッジ・操作・専用
- * ビューアへの導線をまとめる。ロジックは持たず callback を上げるだけ。
+ * 版履歴の縦リスト。各行は状態バッジ・承認系操作と、PDF 閲覧・
+ * コメントを担う専用版ビューアへの遷移導線をまとめる。行自体の
+ * クリックでも専用ビューアへ遷移する（プレビューは文書詳細から
+ * 撤去し専用ビューアへ集約）。ロジックは持たず callback を上げるだけ。
  */
 export function VersionHistoryList({
   versions,
-  selected,
   permissions,
   workflowPending,
-  onSelect,
   onOpenViewer,
   onSubmit,
   onApprove,
@@ -60,97 +57,93 @@ export function VersionHistoryList({
       disablePadding
       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
     >
-      {versions.map((v) => {
-        const isSelected = selected === v.versionNumber;
-        return (
-          <Box
-            key={v.versionNumber}
-            component="li"
-            sx={{
-              border: 1,
-              borderColor: isSelected ? 'primary.main' : 'divider',
-              borderRadius: 1.5,
-              overflow: 'hidden',
+      {versions.map((v) => (
+        <Box
+          key={v.versionNumber}
+          component="li"
+          sx={{
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            overflow: 'hidden',
+          }}
+        >
+          <ListItemButton
+            onClick={() => {
+              onOpenViewer(v.versionNumber);
             }}
+            sx={{ display: 'block', py: 1.25 }}
           >
-            <ListItemButton
-              selected={isSelected}
-              onClick={() => {
-                onSelect(v.versionNumber);
-              }}
-              sx={{ display: 'block', py: 1.25 }}
-            >
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                spacing={1}
-              >
-                <Typography sx={{ fontWeight: 600 }}>
-                  v{v.versionNumber}
-                </Typography>
-                <VersionStatusBadge status={v.status} />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {new Date(v.createdAt).toLocaleString('ja-JP')}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-              >
-                {v.latestCommentAt !== null
-                  ? `最終コメント: ${new Date(v.latestCommentAt).toLocaleString(
-                      'ja-JP',
-                    )}`
-                  : 'コメントなし'}
-              </Typography>
-            </ListItemButton>
             <Stack
               direction="row"
               alignItems="center"
               justifyContent="space-between"
               spacing={1}
-              sx={{
-                px: 1.5,
-                py: 1,
-                borderTop: 1,
-                borderColor: 'divider',
-                flexWrap: 'wrap',
+            >
+              <Typography sx={{ fontWeight: 600 }}>
+                v{v.versionNumber}
+              </Typography>
+              <VersionStatusBadge status={v.status} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              {new Date(v.createdAt).toLocaleString('ja-JP')}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
+              {v.latestCommentAt !== null
+                ? `最終コメント: ${new Date(v.latestCommentAt).toLocaleString(
+                    'ja-JP',
+                  )}`
+                : 'コメントなし'}
+            </Typography>
+          </ListItemButton>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1}
+            sx={{
+              px: 1.5,
+              py: 1,
+              borderTop: 1,
+              borderColor: 'divider',
+              flexWrap: 'wrap',
+            }}
+          >
+            <VersionActions
+              status={v.status}
+              pending={workflowPending}
+              permissions={permissions}
+              onSubmit={() => {
+                onSubmit(v.versionNumber);
+              }}
+              onApprove={() => {
+                onApprove(v.versionNumber);
+              }}
+              onRequestChanges={() => {
+                onRequestChanges(v.versionNumber);
+              }}
+              onReject={() => {
+                onReject(v.versionNumber);
+              }}
+              onPublish={() => {
+                onPublish(v.versionNumber);
+              }}
+            />
+            <Button
+              size="small"
+              onClick={() => {
+                onOpenViewer(v.versionNumber);
               }}
             >
-              <VersionActions
-                status={v.status}
-                pending={workflowPending}
-                permissions={permissions}
-                onSubmit={() => {
-                  onSubmit(v.versionNumber);
-                }}
-                onApprove={() => {
-                  onApprove(v.versionNumber);
-                }}
-                onRequestChanges={() => {
-                  onRequestChanges(v.versionNumber);
-                }}
-                onReject={() => {
-                  onReject(v.versionNumber);
-                }}
-                onPublish={() => {
-                  onPublish(v.versionNumber);
-                }}
-              />
-              <Button
-                size="small"
-                onClick={() => {
-                  onOpenViewer(v.versionNumber);
-                }}
-              >
-                専用ビューアで開く
-              </Button>
-            </Stack>
-          </Box>
-        );
-      })}
+              専用ビューアで開く
+            </Button>
+          </Stack>
+        </Box>
+      ))}
     </List>
   );
 }

@@ -9,6 +9,7 @@ function aVersion(versionNumber: number): DocumentVersion {
     status: 'draft',
     uploadedBy: '01H00000000000000000000000',
     createdAt: '2026-04-15T00:00:00.000Z',
+    latestCommentAt: null,
   };
 }
 
