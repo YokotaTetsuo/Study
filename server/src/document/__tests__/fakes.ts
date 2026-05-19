@@ -154,3 +154,28 @@ export class FakeAuthorDirectory implements AuthorDirectory {
     return Promise.resolve(result);
   }
 }
+
+/**
+ * findDisplayNames が常に失敗する AuthorDirectory。
+ * 表示名解決の例外を補助情報として握り潰す挙動の検証に使う。
+ */
+export class FailingAuthorDirectory implements AuthorDirectory {
+  findDisplayNames(): Promise<ReadonlyMap<string, string>> {
+    return Promise.reject(new Error('ディレクトリ解決に失敗'));
+  }
+}
+
+/**
+ * 渡された userId 群を記録する AuthorDirectory。
+ * 重複 ID の一意化を「ディレクトリへ渡した引数」として検証するために使う。
+ */
+export class RecordingAuthorDirectory implements AuthorDirectory {
+  readonly receivedUserIds: string[][] = [];
+
+  findDisplayNames(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>> {
+    this.receivedUserIds.push([...userIds]);
+    return Promise.resolve(new Map<string, string>());
+  }
+}

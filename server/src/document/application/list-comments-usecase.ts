@@ -49,9 +49,10 @@ export class ListCommentsUseCase {
     }
     // 版未存在は集約が VersionNotFoundError を送出する（単一走査）。
     const comments = document.commentsOf(query.versionNumber);
-    const displayNames = await this.#authorDirectory.findDisplayNames(
-      comments.map((c) => c.authorId.value),
-    );
+    // 同一著者が複数コメントを持つと ID が重複するため一意化してから引く。
+    const uniqueAuthorIds = [...new Set(comments.map((c) => c.authorId.value))];
+    const displayNames =
+      await this.#authorDirectory.findDisplayNames(uniqueAuthorIds);
     return comments.map((c) =>
       toCommentResult(c, displayNames.get(c.authorId.value) ?? null),
     );
