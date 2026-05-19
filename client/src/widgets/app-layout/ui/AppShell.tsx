@@ -83,7 +83,8 @@ export function AppShell(): ReactElement {
   // 親が無い（最上位 = trail が 1 要素）なら null。
   const parentCrumb = trail[trail.length - 2] ?? null;
   // PDF を主役にするページ（版プレビュー専用 / 文書詳細）は横方向の
-  // レイアウトを活かすため幅制約を外し、画面いっぱいに広げる。
+  // レイアウトを活かすため Container を md→xl へ拡張する（全幅では
+  // なく xl 上限。超ワイドでの可読性低下を避ける）。
   const wide =
     leafRouteId ===
       '/projects/$projectId/documents/$documentId/versions/$versionNumber' ||
