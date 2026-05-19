@@ -15,6 +15,10 @@ export default defineConfig(
       '**/coverage/',
       '.dependency-cruiser.js',
       '.husky/**',
+      // Claude Code エージェントの作業用 git worktree。リポジトリ本体の
+      // 配下に作られるため、無視しないと eslint . が全 worktree を走査し
+      // OOM する。lint 対象外（各 worktree 内で個別に lint される）。
+      '.claude/worktrees/**',
       '**/routeTree.gen.ts',
       // panoptiplan からの参照用サンプル（原文ママ保持・現行 tsconfig 配下外）
       'docs/reference/**',
