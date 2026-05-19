@@ -10,6 +10,7 @@ import { Argon2PasswordHasher } from '../auth/adapters/gateways/argon2-password-
 import { DrizzleUserRepository } from '../auth/adapters/gateways/drizzle-user-repository';
 import { RegisterUseCase } from '../auth/application/register-usecase';
 import { DrizzleDocumentRepository } from '../document/adapters/gateways/drizzle-document-repository';
+import { ResilientAuthorDirectory } from '../document/adapters/gateways/resilient-author-directory';
 import { S3FileStorage } from '../document/adapters/gateways/s3-file-storage';
 import { SqlAuthorDirectory } from '../document/adapters/gateways/sql-author-directory';
 import { SqlProjectAccess } from '../document/adapters/gateways/sql-project-access';
@@ -109,7 +110,9 @@ async function run(dbClient: DbClient): Promise<void> {
   const userDirectory = new DrizzleUserDirectory(dbClient.db);
   const documents = new DrizzleDocumentRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
-  const authorDirectory = new SqlAuthorDirectory(dbClient.sql);
+  const authorDirectory = new ResilientAuthorDirectory(
+    new SqlAuthorDirectory(dbClient.sql),
+  );
   const s3Client = createS3Client(env);
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   await ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);

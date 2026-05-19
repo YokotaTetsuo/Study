@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   COMMENT_ID,
   DOCUMENT_ID,
-  FailingAuthorDirectory,
   FakeAuthorDirectory,
   FakeProjectAccess,
   FIXED_NOW,
@@ -45,10 +44,6 @@ async function seedDocWithVersion(
 }
 
 describe('AddCommentUseCase', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('should add a comment to a version for a member', async () => {
     const documents = new InMemoryDocumentRepository();
     await seedDocWithVersion(documents);
@@ -101,15 +96,16 @@ describe('AddCommentUseCase', () => {
     expect(result.authorDisplayName).toBeNull();
   });
 
-  it('should persist the comment and fall back to null when display name resolution throws', async () => {
+  it('should persist the comment and fall back to null when display name is unresolved', async () => {
     const documents = new InMemoryDocumentRepository();
     await seedDocWithVersion(documents);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const useCase = new AddCommentUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
-      // ディレクトリ解決が例外を投げる（補助情報なので処理は成功させる）。
-      authorDirectory: new FailingAuthorDirectory(),
+      // 著者の表示名を解決できないディレクトリ（ユーザー削除等を模す）。
+      // 解決失敗の握り潰しは ResilientAuthorDirectory の責務なので
+      // ここでは「未解決 ID は Map に含まれない」契約だけを使う。
+      authorDirectory: new FakeAuthorDirectory({}),
       idGenerator: idGeneratorReturning(COMMENT_ID),
       clock: fixedClock,
     });

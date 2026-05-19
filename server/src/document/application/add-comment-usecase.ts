@@ -67,19 +67,14 @@ export class AddCommentUseCase {
       createdAt: this.#clock.now(),
     });
     await this.#documents.save(document);
-    // 表示名は補助情報。永続化済みのコメントを HTTP 失敗させないため、
-    // ディレクトリ解決の失敗は握り潰して null フォールバックする
-    // （これによりコメント追加の原子性／信頼性を担保する）。
-    let displayName: string | null = null;
-    try {
-      const displayNames = await this.#authorDirectory.findDisplayNames([
-        comment.authorId.value,
-      ]);
-      displayName = displayNames.get(comment.authorId.value) ?? null;
-    } catch (error) {
-      // eslint-disable-next-line no-console -- 補助情報の解決失敗を可視化
-      console.warn('著者表示名の解決に失敗しました（null で続行）:', error);
-    }
+    // 表示名は補助情報。解決失敗の握り潰しと警告ログは
+    // ResilientAuthorDirectory が一元的に担保する（findDisplayNames は
+    // throw せず、未解決 ID は Map に含めない契約）。ここでは Map に
+    // 無ければ null フォールバックするだけ。
+    const displayNames = await this.#authorDirectory.findDisplayNames([
+      comment.authorId.value,
+    ]);
+    const displayName = displayNames.get(comment.authorId.value) ?? null;
     return toCommentResult(comment, displayName);
   }
 }
