@@ -39,6 +39,11 @@ export class InMemoryProjectRepository implements ProjectRepository {
     this.#byId.set(project.id.value, project);
     return Promise.resolve();
   }
+
+  delete(id: ProjectId): Promise<void> {
+    this.#byId.delete(id.value);
+    return Promise.resolve();
+  }
 }
 
 /** インメモリの email→userId / プロフィール解決。 */

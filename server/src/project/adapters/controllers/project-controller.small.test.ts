@@ -8,6 +8,7 @@ import { InMemoryUserDirectory, OWNER_ID } from '../../__tests__/fakes';
 import { MemberUserNotFoundError } from '../../application/member-user-not-found-error';
 import { NotAuthorizedError } from '../../application/not-authorized-error';
 import type { ProjectResult } from '../../application/project-result';
+import { ProjectNotFoundError } from '../../domain/project-not-found-error';
 
 import { createProjectApp } from './project-controller';
 
@@ -42,6 +43,8 @@ function deps(sessions: SessionStore): Parameters<typeof createProjectApp>[0] {
     addMember: { execute: vi.fn().mockResolvedValue(RESULT) },
     setMemberRole: { execute: vi.fn().mockResolvedValue(RESULT) },
     updateApprovalPolicy: { execute: vi.fn().mockResolvedValue(RESULT) },
+    renameProject: { execute: vi.fn().mockResolvedValue(RESULT) },
+    deleteProject: { execute: vi.fn().mockResolvedValue(undefined) },
     sessions,
     userDirectory: directory,
   };
@@ -247,5 +250,169 @@ describe('project controller', () => {
     );
 
     expect(res.status).toBe(401);
+  });
+
+  it('should rename a project (200) for an owner', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', 'sid=abc');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/name`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ name: 'Renamed' }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should map NotAuthorizedError to 403 on rename', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      renameProject: {
+        execute: vi.fn().mockRejectedValue(new NotAuthorizedError()),
+      },
+    });
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', 'sid=abc');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/name`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ name: 'X' }),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(403);
+  });
+
+  it('should require a session to rename a project (401)', async () => {
+    const app = createProjectApp(deps(anonSessions));
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/name`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ name: 'Renamed' }),
+      }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should map ProjectNotFoundError to 404 on rename', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      renameProject: {
+        execute: vi.fn().mockRejectedValue(new ProjectNotFoundError()),
+      },
+    });
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', 'sid=abc');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/name`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ name: 'X' }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(404);
+  });
+
+  it('should return 400 problem for an invalid rename body', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+    const headers = new Headers();
+    headers.set('content-type', 'application/json');
+    headers.set('cookie', 'sid=abc');
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}/name`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ name: '' }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(400);
+  });
+
+  it('should delete a project and return 204 for an owner', async () => {
+    const app = createProjectApp(deps(loggedInSessions));
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=abc']]),
+      }),
+    );
+
+    expect(res.status).toBe(204);
+  });
+
+  it('should require a session to delete a project (401)', async () => {
+    const app = createProjectApp(deps(anonSessions));
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}`, {
+        method: 'DELETE',
+      }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should map NotAuthorizedError to 403 on delete', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      deleteProject: {
+        execute: vi.fn().mockRejectedValue(new NotAuthorizedError()),
+      },
+    });
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=abc']]),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(403);
+  });
+
+  it('should map ProjectNotFoundError to 404 on delete', async () => {
+    const d = deps(loggedInSessions);
+    const app = createProjectApp({
+      ...d,
+      deleteProject: {
+        execute: vi.fn().mockRejectedValue(new ProjectNotFoundError()),
+      },
+    });
+
+    const res = await app.request(
+      new Request(`http://local/projects/${RESULT.id}`, {
+        method: 'DELETE',
+        headers: new Headers([['cookie', 'sid=abc']]),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(problemDetailSchema.parse(await res.json()).status).toBe(404);
   });
 });

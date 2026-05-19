@@ -86,6 +86,10 @@ export class SingleProjectRepository implements ProjectRepository {
   save(_project: Project): Promise<void> {
     return Promise.resolve();
   }
+
+  delete(_id: ProjectId): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 /** 永続境界を模し、保存値と独立した複製を作る in-memory 実装。 */

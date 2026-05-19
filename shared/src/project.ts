@@ -13,10 +13,17 @@ export const projectRoleSchema = z.enum([
 ]);
 export type ProjectRole = z.infer<typeof projectRoleSchema>;
 
+// trim を schema 側にも入れ、空白のみ名（'   '）を境界で弾く。
+// これが無いと domain の ValidationError 経由で 400 になり責務がずれる。
 export const createProjectRequestSchema = z.object({
-  name: z.string().min(1).max(120),
+  name: z.string().trim().min(1).max(120),
 });
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+
+export const renameProjectRequestSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+export type RenameProjectRequest = z.infer<typeof renameProjectRequestSchema>;
 
 export const addMemberRequestSchema = z.object({
   email: z.string().email().max(254),

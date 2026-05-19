@@ -25,8 +25,10 @@ import { DrizzleProjectRepository } from '../../project/adapters/gateways/drizzl
 import { DrizzleUserDirectory } from '../../project/adapters/gateways/drizzle-user-directory';
 import { AddMemberUseCase } from '../../project/application/add-member-usecase';
 import { CreateProjectUseCase } from '../../project/application/create-project-usecase';
+import { DeleteProjectUseCase } from '../../project/application/delete-project-usecase';
 import { GetProjectUseCase } from '../../project/application/get-project-usecase';
 import { ListProjectsUseCase } from '../../project/application/list-projects-usecase';
+import { RenameProjectUseCase } from '../../project/application/rename-project-usecase';
 import { SetMemberRoleUseCase } from '../../project/application/set-member-role-usecase';
 import { UpdateApprovalPolicyUseCase } from '../../project/application/update-approval-policy-usecase';
 import { ApproveVersionUseCase } from '../../review/application/approve-version-usecase';
@@ -97,6 +99,8 @@ export function createContainer(env: Env): Container {
       addMember: new AddMemberUseCase({ projects, userDirectory }),
       setMemberRole: new SetMemberRoleUseCase({ projects }),
       updateApprovalPolicy: new UpdateApprovalPolicyUseCase({ projects }),
+      renameProject: new RenameProjectUseCase({ projects }),
+      deleteProject: new DeleteProjectUseCase({ projects }),
       sessions,
       userDirectory,
     },

@@ -99,4 +99,85 @@ describe('DrizzleProjectRepository', () => {
       new Set([PROJECT_ID_1, PROJECT_ID_2]),
     );
   });
+
+  it('should delete a project and cascade-remove its members', async () => {
+    const project = aProject();
+    project.addMember({
+      userId: new MemberUserId(MEMBER_ID),
+      role: new ProjectRole('reviewer'),
+    });
+    await repo.save(project);
+
+    await repo.delete(new ProjectId(PROJECT_ID_1));
+
+    expect(await repo.findById(new ProjectId(PROJECT_ID_1))).toBeNull();
+    const rows = await client.sql<{ n: number }[]>`
+      select count(*)::int as n from project_members
+      where project_id = ${PROJECT_ID_1}
+    `;
+    expect(rows[0]?.n).toBe(0);
+  });
+
+  it('should cascade-remove documents, versions, comments and reviews on delete', async () => {
+    await repo.save(aProject());
+    // 文書 → 版 → コメント / レビュー依頼 → 承認 の木を直接投入し、
+    // プロジェクト削除で FK cascade が全段（documents 経由で
+    // versions/comments と review_requests/review_approvals）へ
+    // 波及することを検証する。
+    const DOC_ID = '01HQ8ZK9PRSTVWXYZ23456789E';
+    const COMMENT_ID = '01HQ8ZK9PRSTVWXYZ23456789F';
+    const RR_ID = '01HQ8ZK9PRSTVWXYZ23456789G';
+    await client.sql`
+      insert into documents (id, project_id, name, created_at, revision)
+      values (${DOC_ID}, ${PROJECT_ID_1}, 'Spec', ${FIXED_NOW.toISOString()}, 0)
+    `;
+    await client.sql`
+      insert into document_versions
+        (document_id, version_number, status, storage_key, uploaded_by, created_at)
+      values (${DOC_ID}, 1, 'draft', 'k/1.pdf', ${OWNER_ID}, ${FIXED_NOW.toISOString()})
+    `;
+    await client.sql`
+      insert into document_comments
+        (id, document_id, version_number, author_id, content, created_at)
+      values (${COMMENT_ID}, ${DOC_ID}, 1, ${OWNER_ID}, 'lgtm', ${FIXED_NOW.toISOString()})
+    `;
+    await client.sql`
+      insert into review_requests
+        (id, document_id, version_number, status, required_approvals,
+         approver_roles, created_at)
+      values (${RR_ID}, ${DOC_ID}, 1, 'pending', 1,
+              ${JSON.stringify(['approver'])}::jsonb, ${FIXED_NOW.toISOString()})
+    `;
+    await client.sql`
+      insert into review_approvals
+        (review_request_id, approver_id, role, decided_at)
+      values (${RR_ID}, ${OWNER_ID}, 'approver', ${FIXED_NOW.toISOString()})
+    `;
+
+    await repo.delete(new ProjectId(PROJECT_ID_1));
+
+    const counts = await client.sql<
+      {
+        docs: number;
+        vers: number;
+        cmts: number;
+        reqs: number;
+        apprs: number;
+      }[]
+    >`
+      select
+        (select count(*)::int from documents where project_id = ${PROJECT_ID_1}) as docs,
+        (select count(*)::int from document_versions where document_id = ${DOC_ID}) as vers,
+        (select count(*)::int from document_comments where document_id = ${DOC_ID}) as cmts,
+        (select count(*)::int from review_requests where document_id = ${DOC_ID}) as reqs,
+        (select count(*)::int from review_approvals where review_request_id = ${RR_ID}) as apprs
+    `;
+    expect(counts[0]).toEqual({
+      docs: 0,
+      vers: 0,
+      cmts: 0,
+      reqs: 0,
+      apprs: 0,
+    });
+  });
 });

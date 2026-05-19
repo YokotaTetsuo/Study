@@ -16,12 +16,16 @@ import {
 } from '@mui/material';
 import { projectRoleSchema } from '@pdf-review/shared';
 import type { ProjectRole } from '@pdf-review/shared';
-import { useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { useMe } from '../../../features/auth';
 import {
+  DeleteProjectButton,
+  DeleteProjectDialog,
+  RenameProjectButton,
+  RenameProjectDialog,
   useAddMember,
   useProject,
   useSetMemberRole,
@@ -36,8 +40,11 @@ export function ProjectSettingsPage(): ReactElement {
   const { projectId } = useParams({
     from: '/projects/$projectId/settings',
   });
+  const navigate = useNavigate();
   const project = useProject(projectId);
   const me = useMe();
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const addMember = useAddMember(projectId);
   const setRole = useSetMemberRole(projectId);
   const updatePolicy = useUpdateApprovalPolicy(projectId);
@@ -80,6 +87,21 @@ export function ProjectSettingsPage(): ReactElement {
         <Alert severity="info" sx={{ mb: 3 }}>
           メンバーと承認ポリシーの変更はプロジェクトのオーナーのみ可能です。
         </Alert>
+      )}
+
+      {isOwner && (
+        <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+          <RenameProjectButton
+            onClick={() => {
+              setRenameOpen(true);
+            }}
+          />
+          <DeleteProjectButton
+            onClick={() => {
+              setDeleteOpen(true);
+            }}
+          />
+        </Stack>
       )}
 
       <Stack spacing={3}>
@@ -246,6 +268,28 @@ export function ProjectSettingsPage(): ReactElement {
           </Box>
         </SectionCard>
       </Stack>
+
+      <RenameProjectDialog
+        projectId={projectId}
+        currentName={p.name}
+        open={renameOpen}
+        onClose={() => {
+          setRenameOpen(false);
+        }}
+      />
+      <DeleteProjectDialog
+        projectId={projectId}
+        projectName={p.name}
+        open={deleteOpen}
+        onClose={() => {
+          setDeleteOpen(false);
+        }}
+        onDeleted={() => {
+          // 削除後はプロジェクト一覧へ。'/' は welcome 表示のみで
+          // 一覧ではないため要件に合わせ /projects へ遷移する。
+          void navigate({ to: '/projects' });
+        }}
+      />
     </>
   );
 }

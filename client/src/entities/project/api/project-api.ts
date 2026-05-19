@@ -6,6 +6,7 @@ import type {
   AddMemberRequest,
   CreateProjectRequest,
   ProjectResponse,
+  RenameProjectRequest,
   SetMemberRoleRequest,
   UpdateApprovalPolicyRequest,
 } from '@pdf-review/shared';
@@ -26,6 +27,21 @@ async function request(
     throw new ApiError(res.status);
   }
   return res.json();
+}
+
+/** ボディを持たない応答（204 等）。指定 status 以外は ApiError。 */
+async function requestNoContent(
+  path: string,
+  init: RequestInit,
+  okStatus: number,
+): Promise<void> {
+  const res = await fetch(`${apiBase}${path}`, {
+    ...init,
+    credentials: 'include',
+  });
+  if (res.status !== okStatus) {
+    throw new ApiError(res.status);
+  }
 }
 
 function jsonInit(method: string, body: unknown): RequestInit {
@@ -92,4 +108,17 @@ export async function updateApprovalPolicy(
       200,
     ),
   );
+}
+
+export async function renameProject(
+  projectId: string,
+  input: RenameProjectRequest,
+): Promise<ProjectResponse> {
+  return projectResponseSchema.parse(
+    await request(`/projects/${projectId}/name`, jsonInit('PUT', input), 200),
+  );
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  return requestNoContent(`/projects/${projectId}`, { method: 'DELETE' }, 204);
 }

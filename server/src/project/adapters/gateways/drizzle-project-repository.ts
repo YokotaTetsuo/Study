@@ -133,4 +133,12 @@ export class DrizzleProjectRepository implements ProjectRepository {
       }
     });
   }
+
+  async delete(id: ProjectId): Promise<void> {
+    // projects 行の削除で、FK onDelete=cascade により
+    // project_members と documents が連鎖削除され、documents から
+    // さらに document_versions → document_comments、および
+    // review_requests → review_approvals まで連鎖削除される。
+    await this.#db.delete(projects).where(eq(projects.id, id.value));
+  }
 }
