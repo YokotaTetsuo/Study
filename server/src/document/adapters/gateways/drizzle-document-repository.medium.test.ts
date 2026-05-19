@@ -228,6 +228,35 @@ describe('DrizzleDocumentRepository comments', () => {
     ).resolves.not.toThrow();
   });
 
+  it('should persist a comment edit (content and updatedAt) on the next save', async () => {
+    const doc = docWithVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(USER_ID),
+      content: new CommentContent('誤記あり'),
+      createdAt: NOW,
+    });
+    await repo.save(doc);
+
+    const reloaded = await repo.findById(new DocumentId(DOC_ID));
+    if (reloaded === null) {
+      throw new Error('seeded document not found');
+    }
+    const editedAt = NOW.add(1, 'hour');
+    reloaded.editComment(1, new CommentId(COMMENT_A), {
+      content: new CommentContent('誤記を修正'),
+      requesterId: new CommentAuthorId(USER_ID),
+      editedAt,
+    });
+    await repo.save(reloaded);
+
+    const after = await repo.findById(new DocumentId(DOC_ID));
+    const comment = after?.commentsOf(1)[0];
+    expect(comment?.content.value).toBe('誤記を修正');
+    expect(comment?.updatedAt.valueOf()).toBe(editedAt.valueOf());
+    expect(comment?.createdAt.valueOf()).toBe(NOW.valueOf());
+  });
+
   it('should persist a comment deletion on the next save', async () => {
     const doc = docWithVersion();
     doc.addComment(1, {

@@ -57,6 +57,13 @@
       "when": 1779131341904,
       "tag": "0007_parched_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779182157496,
+      "tag": "0008_sweet_doctor_octopus",
+      "breakpoints": true
     }
   ]
 }

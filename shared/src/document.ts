@@ -65,6 +65,8 @@ export const commentSchema = z.object({
   // 想定であり、この schema が検証・強制する不変条件ではない点に注意。
   content: z.string().min(1).max(2000),
   createdAt: z.string().datetime(),
+  // 最終更新時刻。未編集なら createdAt と一致する（編集で更新される）。
+  updatedAt: z.string().datetime(),
 });
 export type Comment = z.infer<typeof commentSchema>;
 
@@ -75,6 +77,12 @@ export const addCommentRequestSchema = z.object({
   content: z.string().trim().min(1).max(2000),
 });
 export type AddCommentRequest = z.infer<typeof addCommentRequestSchema>;
+
+// 編集も追加と同じ本文制約。trim 後 1〜2000 文字。
+export const updateCommentRequestSchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+});
+export type UpdateCommentRequest = z.infer<typeof updateCommentRequestSchema>;
 
 export const commentListResponseSchema = z.array(commentSchema);
 export type CommentListResponse = z.infer<typeof commentListResponseSchema>;

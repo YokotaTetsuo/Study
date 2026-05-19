@@ -7,6 +7,7 @@ import {
   documentResponseSchema,
   problemDetailSchema,
   renameDocumentRequestSchema,
+  updateCommentRequestSchema,
   versionStatusSchema,
 } from '@pdf-review/shared';
 import type { Comment, DocumentResponse } from '@pdf-review/shared';
@@ -21,6 +22,7 @@ import type { CreateDocumentUseCase } from '../../application/create-document-us
 import type { DeleteCommentUseCase } from '../../application/delete-comment-usecase';
 import type { DeleteDocumentUseCase } from '../../application/delete-document-usecase';
 import type { DocumentResult } from '../../application/document-result';
+import type { EditCommentUseCase } from '../../application/edit-comment-usecase';
 import type { GetDocumentUseCase } from '../../application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../application/get-version-file-usecase';
 import type { ListCommentsUseCase } from '../../application/list-comments-usecase';
@@ -71,6 +73,7 @@ interface DocumentDeps {
   readonly getVersionFile: Pick<GetVersionFileUseCase, 'execute'>;
   readonly addComment: Pick<AddCommentUseCase, 'execute'>;
   readonly listComments: Pick<ListCommentsUseCase, 'execute'>;
+  readonly editComment: Pick<EditCommentUseCase, 'execute'>;
   readonly deleteComment: Pick<DeleteCommentUseCase, 'execute'>;
   readonly sessions: SessionStore;
 }
@@ -98,6 +101,7 @@ function serializeComment(result: CommentResult): Comment {
     authorId: result.authorId,
     content: result.content,
     createdAt: result.createdAt.toISOString(),
+    updatedAt: result.updatedAt.toISOString(),
   };
 }
 
@@ -280,16 +284,31 @@ const listCommentsRouteDef = createRoute({
   },
 });
 
+const commentParam = z.object({
+  documentId: z.string(),
+  versionNumber: z.string(),
+  commentId: z.string(),
+});
+
+const editCommentRouteDef = createRoute({
+  method: 'patch',
+  path: '/documents/{documentId}/versions/{versionNumber}/comments/{commentId}',
+  request: {
+    params: commentParam,
+    body: {
+      content: { 'application/json': { schema: updateCommentRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: 'コメント編集成功' as const, content: commentContent },
+  },
+});
+
 const deleteCommentRouteDef = createRoute({
   method: 'delete',
   path: '/documents/{documentId}/versions/{versionNumber}/comments/{commentId}',
-  request: {
-    params: z.object({
-      documentId: z.string(),
-      versionNumber: z.string(),
-      commentId: z.string(),
-    }),
-  },
+  request: { params: commentParam },
   responses: {
     ...errorResponses,
     204: { description: '削除成功' as const },
@@ -538,6 +557,30 @@ export function createDocumentApp(deps: DocumentDeps) {
           actingUserId,
         });
         return c.json(results.map(serializeComment), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(editCommentRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const params = c.req.valid('param');
+        const versionNumber = parseVersionNumber(params.versionNumber);
+        if (versionNumber === null) {
+          return c.json(BAD_VERSION_BODY, 400, PROBLEM_HEADERS);
+        }
+        const result = await deps.editComment.execute({
+          documentId: params.documentId,
+          versionNumber,
+          commentId: params.commentId,
+          actingUserId,
+          content: c.req.valid('json').content,
+        });
+        return c.json(serializeComment(result), 200);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);

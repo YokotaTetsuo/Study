@@ -42,6 +42,7 @@ export {
   documentListResponseSchema,
   commentSchema,
   addCommentRequestSchema,
+  updateCommentRequestSchema,
   commentListResponseSchema,
 } from './document';
 export type {
@@ -53,5 +54,6 @@ export type {
   DocumentListResponse,
   Comment,
   AddCommentRequest,
+  UpdateCommentRequest,
   CommentListResponse,
 } from './document';

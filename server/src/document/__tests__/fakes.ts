@@ -58,6 +58,7 @@ function cloneDocument(d: Document): Document {
         authorId: c.authorId.value,
         content: c.content.value,
         createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
       })),
     })),
   });

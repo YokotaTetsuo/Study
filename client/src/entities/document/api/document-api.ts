@@ -201,6 +201,25 @@ export function deleteDocument(documentId: string): Promise<void> {
   );
 }
 
+export async function updateComment(
+  documentId: string,
+  versionNumber: number,
+  commentId: string,
+  content: string,
+): Promise<Comment> {
+  const headers = new Headers();
+  headers.set('content-type', 'application/json');
+  return commentSchema.parse(
+    await request(
+      `/documents/${documentId}/versions/${String(
+        versionNumber,
+      )}/comments/${commentId}`,
+      { method: 'PATCH', headers, body: JSON.stringify({ content }) },
+      200,
+    ),
+  );
+}
+
 export function deleteComment(
   documentId: string,
   versionNumber: number,

@@ -46,6 +46,8 @@ export const documentComments = pgTable(
     authorId: text('author_id').notNull(),
     content: text('content').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    // 最終更新時刻。追加時は created_at と同値、本文編集で更新される。
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   // 親版の複合キーへ FK。版削除（=文書削除カスケード）に追随して消す。
   (t) => [

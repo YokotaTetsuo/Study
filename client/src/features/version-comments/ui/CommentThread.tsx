@@ -13,6 +13,7 @@ import {
   useAddComment,
   useComments,
   useDeleteComment,
+  useEditComment,
 } from '../model/use-comments';
 
 interface CommentThreadProps {
@@ -24,8 +25,8 @@ interface CommentThreadProps {
 
 /**
  * 版に紐づくコメントスレッド。一覧（追加順）＋投稿フォーム＋
- * 著者本人のみの削除ボタンを提供する。Dialog/Popover を使わない
- * インライン UI のため Portal 規約の対象外。
+ * 著者本人のみの編集・削除を提供する。編集はインライン TextField で
+ * 行う（Dialog/Popover を使わないため Portal 規約の対象外）。
  */
 export function CommentThread({
   documentId,
@@ -34,8 +35,12 @@ export function CommentThread({
 }: CommentThreadProps): ReactElement {
   const comments = useComments(documentId, versionNumber);
   const add = useAddComment(documentId, versionNumber);
+  const edit = useEditComment(documentId, versionNumber);
   const remove = useDeleteComment(documentId, versionNumber);
   const [draft, setDraft] = useState('');
+  // 編集中のコメント ID と編集用ドラフト本文（null = 編集していない）。
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   return (
     <Stack spacing={2}>
@@ -66,29 +71,105 @@ export function CommentThread({
                   alignItems="flex-start"
                   spacing={1}
                 >
-                  <Box sx={{ minWidth: 0 }}>
+                  <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       {c.authorId} ・{' '}
                       {new Date(c.createdAt).toLocaleString('ja-JP')}
+                      {c.updatedAt !== c.createdAt && ' ・ 編集済み'}
                     </Typography>
-                    <Typography
-                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                    >
-                      {c.content}
-                    </Typography>
+                    {editingId === c.id ? (
+                      <Box
+                        component="form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          edit.mutate(
+                            { commentId: c.id, content: editDraft },
+                            {
+                              onSuccess: () => {
+                                setEditingId(null);
+                              },
+                            },
+                          );
+                        }}
+                      >
+                        <Stack spacing={1} sx={{ mt: 1 }}>
+                          <TextField
+                            label="コメントを編集"
+                            value={editDraft}
+                            onChange={(e) => {
+                              setEditDraft(e.target.value);
+                            }}
+                            multiline
+                            minRows={2}
+                            fullWidth
+                            required
+                          />
+                          {edit.isError && (
+                            <Alert severity="error">
+                              コメントを編集できませんでした
+                            </Alert>
+                          )}
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              type="submit"
+                              size="small"
+                              variant="contained"
+                              disabled={
+                                edit.isPending ||
+                                editDraft.trim().length === 0 ||
+                                editDraft === c.content
+                              }
+                            >
+                              保存
+                            </Button>
+                            <Button
+                              size="small"
+                              disabled={edit.isPending}
+                              onClick={() => {
+                                setEditingId(null);
+                              }}
+                            >
+                              キャンセル
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Box>
+                    ) : (
+                      <Typography
+                        sx={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {c.content}
+                      </Typography>
+                    )}
                   </Box>
-                  {currentUserId === c.authorId && (
-                    <Button
-                      size="small"
-                      color="error"
-                      aria-label="コメントを削除"
-                      disabled={remove.isPending}
-                      onClick={() => {
-                        remove.mutate(c.id);
-                      }}
-                    >
-                      削除
-                    </Button>
+                  {currentUserId === c.authorId && editingId !== c.id && (
+                    <Stack direction="row" spacing={0.5}>
+                      <Button
+                        size="small"
+                        aria-label="コメントを編集"
+                        disabled={remove.isPending}
+                        onClick={() => {
+                          setEditingId(c.id);
+                          setEditDraft(c.content);
+                        }}
+                      >
+                        編集
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        aria-label="コメントを削除"
+                        disabled={remove.isPending}
+                        onClick={() => {
+                          remove.mutate(c.id);
+                        }}
+                      >
+                        削除
+                      </Button>
+                    </Stack>
                   )}
                 </Stack>
               </Box>
