@@ -15,6 +15,7 @@ import { GetDocumentUseCase } from '../../document/application/get-document-usec
 import { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
 import { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
+import { RenameDocumentUseCase } from '../../document/application/rename-document-usecase';
 import { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { SqlDbConnectivity } from '../../health/adapters/gateways/sql-db-connectivity';
 import { GetHealthUseCase } from '../../health/application/get-health-usecase';
@@ -106,6 +107,7 @@ export function createContainer(env: Env): Container {
       }),
       listDocuments: new ListDocumentsUseCase({ documents, projectAccess }),
       getDocument: new GetDocumentUseCase({ documents, projectAccess }),
+      renameDocument: new RenameDocumentUseCase({ documents, projectAccess }),
       uploadVersion: new UploadVersionUseCase({
         documents,
         projectAccess,

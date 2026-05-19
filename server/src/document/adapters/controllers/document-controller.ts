@@ -6,6 +6,7 @@ import {
   createDocumentRequestSchema,
   documentResponseSchema,
   problemDetailSchema,
+  renameDocumentRequestSchema,
   versionStatusSchema,
 } from '@pdf-review/shared';
 import type { Comment, DocumentResponse } from '@pdf-review/shared';
@@ -23,6 +24,7 @@ import type { GetDocumentUseCase } from '../../application/get-document-usecase'
 import type { GetVersionFileUseCase } from '../../application/get-version-file-usecase';
 import type { ListCommentsUseCase } from '../../application/list-comments-usecase';
 import type { ListDocumentsUseCase } from '../../application/list-documents-usecase';
+import type { RenameDocumentUseCase } from '../../application/rename-document-usecase';
 import type { UploadVersionUseCase } from '../../application/upload-version-usecase';
 
 import { toProblem } from './problem';
@@ -62,6 +64,7 @@ interface DocumentDeps {
   readonly createDocument: Pick<CreateDocumentUseCase, 'execute'>;
   readonly listDocuments: Pick<ListDocumentsUseCase, 'execute'>;
   readonly getDocument: Pick<GetDocumentUseCase, 'execute'>;
+  readonly renameDocument: Pick<RenameDocumentUseCase, 'execute'>;
   readonly uploadVersion: Pick<UploadVersionUseCase, 'execute'>;
   readonly getVersionFile: Pick<GetVersionFileUseCase, 'execute'>;
   readonly addComment: Pick<AddCommentUseCase, 'execute'>;
@@ -156,6 +159,21 @@ const getRouteDef = createRoute({
   responses: {
     ...errorResponses,
     200: { description: '取得成功' as const, content: documentContent },
+  },
+});
+
+const renameRouteDef = createRoute({
+  method: 'put',
+  path: '/documents/{documentId}',
+  request: {
+    params: documentIdParam,
+    body: {
+      content: { 'application/json': { schema: renameDocumentRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: '変更成功' as const, content: documentContent },
   },
 });
 
@@ -340,6 +358,23 @@ export function createDocumentApp(deps: DocumentDeps) {
         const result = await deps.getDocument.execute({
           documentId: c.req.valid('param').documentId,
           actingUserId,
+        });
+        return c.json(serialize(result), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(renameRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const result = await deps.renameDocument.execute({
+          documentId: c.req.valid('param').documentId,
+          actingUserId,
+          name: c.req.valid('json').name,
         });
         return c.json(serialize(result), 200);
       } catch (e) {

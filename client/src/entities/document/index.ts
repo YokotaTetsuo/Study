@@ -9,6 +9,7 @@ export {
   listDocuments,
   getDocument,
   createDocument,
+  renameDocument,
   uploadVersion,
   submitVersion,
   approveVersion,

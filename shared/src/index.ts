@@ -36,6 +36,7 @@ export type {
 export {
   versionStatusSchema,
   createDocumentRequestSchema,
+  renameDocumentRequestSchema,
   documentVersionSchema,
   documentResponseSchema,
   documentListResponseSchema,
@@ -46,6 +47,7 @@ export {
 export type {
   VersionStatus,
   CreateDocumentRequest,
+  RenameDocumentRequest,
   DocumentVersion,
   DocumentResponse,
   DocumentListResponse,

@@ -365,3 +365,32 @@ describe('Document comments', () => {
     ]);
   });
 });
+
+describe('Document rename', () => {
+  it('should replace the name with the given value', () => {
+    const doc = newDocument();
+
+    doc.rename(new DocumentName('要件定義書'));
+
+    expect(doc.name.value).toBe('要件定義書');
+  });
+
+  it('should keep other state unchanged when renamed', () => {
+    const doc = docWithOneVersion();
+
+    doc.rename(new DocumentName('改訂版'));
+
+    expect(doc.id.value).toBe(DOC_ID);
+    expect(doc.projectId.value).toBe(PROJ_ID);
+    expect(doc.versions).toHaveLength(1);
+  });
+
+  it('should reject an invalid name via the value object', () => {
+    const doc = newDocument();
+
+    expect(() => {
+      doc.rename(new DocumentName('   '));
+    }).toThrow();
+    expect(doc.name.value).toBe('設計書');
+  });
+});

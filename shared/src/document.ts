@@ -24,6 +24,13 @@ export const createDocumentRequestSchema = z.object({
 });
 export type CreateDocumentRequest = z.infer<typeof createDocumentRequestSchema>;
 
+// 文書名の変更リクエスト。createDocumentRequestSchema の name と同条件
+// （1〜200 文字）。domain DocumentName も trim 後に同条件で検証する。
+export const renameDocumentRequestSchema = z.object({
+  name: z.string().min(1).max(200),
+});
+export type RenameDocumentRequest = z.infer<typeof renameDocumentRequestSchema>;
+
 export const documentVersionSchema = z.object({
   versionNumber: z.number().int().min(1),
   status: versionStatusSchema,

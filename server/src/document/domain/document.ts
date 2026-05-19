@@ -252,7 +252,7 @@ export interface VersionReadonly {
 export class Document {
   readonly #id: DocumentId;
   readonly #projectId: DocumentProjectId;
-  readonly #name: DocumentName;
+  #name: DocumentName;
   readonly #createdAt: Dayjs;
   readonly #versions: DocumentVersion[];
   // 正式版ポインタ。null=未公開。official 状態の版のみが指される。
@@ -375,6 +375,14 @@ export class Document {
     });
     this.#versions.push(version);
     return version;
+  }
+
+  /**
+   * 文書名を変更する。妥当性（1〜200 文字・前後空白除去）は DocumentName
+   * 値オブジェクトが構築時に保証するため、ここでは差し替えのみ行う。
+   */
+  rename(name: DocumentName): void {
+    this.#name = name;
   }
 
   findVersion(versionNumber: number): VersionReadonly | undefined {

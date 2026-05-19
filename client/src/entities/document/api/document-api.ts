@@ -8,6 +8,7 @@ import type {
   Comment,
   CreateDocumentRequest,
   DocumentResponse,
+  RenameDocumentRequest,
 } from '@pdf-review/shared';
 
 import { ApiError } from '../../../shared/api/api-error';
@@ -54,6 +55,21 @@ export async function createDocument(
       '/documents',
       { method: 'POST', headers, body: JSON.stringify(input) },
       201,
+    ),
+  );
+}
+
+export async function renameDocument(
+  documentId: string,
+  input: RenameDocumentRequest,
+): Promise<DocumentResponse> {
+  const headers = new Headers();
+  headers.set('content-type', 'application/json');
+  return documentResponseSchema.parse(
+    await request(
+      `/documents/${documentId}`,
+      { method: 'PUT', headers, body: JSON.stringify(input) },
+      200,
     ),
   );
 }
