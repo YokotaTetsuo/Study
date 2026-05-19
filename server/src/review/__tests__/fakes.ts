@@ -87,6 +87,10 @@ export class SingleProjectRepository implements ProjectRepository {
     return Promise.resolve();
   }
 
+  rename(_id: ProjectId, _name: ProjectName): Promise<void> {
+    return Promise.resolve();
+  }
+
   delete(_id: ProjectId): Promise<void> {
     return Promise.resolve();
   }

@@ -134,6 +134,15 @@ export class DrizzleProjectRepository implements ProjectRepository {
     });
   }
 
+  async rename(id: ProjectId, name: ProjectName): Promise<void> {
+    // 名称のみの更新。project_members には触れず、不要な
+    // 削除→再挿入の書込・ロックを避ける。
+    await this.#db
+      .update(projects)
+      .set({ name: name.value })
+      .where(eq(projects.id, id.value));
+  }
+
   async delete(id: ProjectId): Promise<void> {
     // projects 行の削除で、FK onDelete=cascade により
     // project_members と documents が連鎖削除され、documents から

@@ -32,8 +32,9 @@ export class RenameProjectUseCase {
     if (!project.isOwner(new MemberUserId(command.actingUserId))) {
       throw new NotAuthorizedError();
     }
-    project.rename(new ProjectName(command.name));
-    await this.#projects.save(project);
+    const newName = new ProjectName(command.name);
+    project.rename(newName);
+    await this.#projects.rename(project.id, newName);
     return toProjectResult(project);
   }
 }

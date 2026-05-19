@@ -65,6 +65,26 @@ describe('DrizzleProjectRepository', () => {
     ).toBe(true);
   });
 
+  it('should update only the name on rename and preserve members', async () => {
+    const project = aProject();
+    project.addMember({
+      userId: new MemberUserId(MEMBER_ID),
+      role: new ProjectRole('reviewer'),
+    });
+    await repo.save(project);
+
+    await repo.rename(new ProjectId(PROJECT_ID_1), new ProjectName('Renamed'));
+
+    const found = await repo.findById(new ProjectId(PROJECT_ID_1));
+    expect(found?.name.value).toBe('Renamed');
+    expect(found?.members).toHaveLength(2);
+    expect(
+      found?.members.some(
+        (m) => m.userId.value === MEMBER_ID && m.role.value === 'reviewer',
+      ),
+    ).toBe(true);
+  });
+
   it('should return null for an unknown project', async () => {
     expect(
       await repo.findById(new ProjectId('01HQ8ZK9PRSTVWXYZ23456789C')),
