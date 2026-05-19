@@ -6,6 +6,7 @@ import { LoginUseCase } from '../../auth/application/login-usecase';
 import { LogoutUseCase } from '../../auth/application/logout-usecase';
 import { RegisterUseCase } from '../../auth/application/register-usecase';
 import { DrizzleDocumentRepository } from '../../document/adapters/gateways/drizzle-document-repository';
+import { ResilientAuthorDirectory } from '../../document/adapters/gateways/resilient-author-directory';
 import { S3FileStorage } from '../../document/adapters/gateways/s3-file-storage';
 import { SqlAuthorDirectory } from '../../document/adapters/gateways/sql-author-directory';
 import { SqlProjectAccess } from '../../document/adapters/gateways/sql-project-access';
@@ -80,7 +81,11 @@ export function createContainer(env: Env): Container {
   const fileStorage = new S3FileStorage(s3Client, env.S3_BUCKET);
   const documents = new DrizzleDocumentRepository(dbClient.db);
   const projectAccess = new SqlProjectAccess(dbClient.sql);
-  const authorDirectory = new SqlAuthorDirectory(dbClient.sql);
+  // 表示名解決の失敗を握り潰し（空 Map＋1 行警告）にする責務を
+  // デコレータへ集約し、各ユースケースの try/catch 重複を排除する。
+  const authorDirectory = new ResilientAuthorDirectory(
+    new SqlAuthorDirectory(dbClient.sql),
+  );
   const transactor = new DrizzleTransactor(dbClient.db);
   const ready = ensureBucket(s3Client, env.S3_BUCKET, env.S3_REGION);
 
