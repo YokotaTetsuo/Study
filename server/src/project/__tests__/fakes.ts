@@ -7,6 +7,7 @@ import type { UserDirectory, UserProfile } from '../application/user-directory';
 import type { MemberUserId } from '../domain/member-user-id';
 import type { Project } from '../domain/project';
 import type { ProjectId } from '../domain/project-id';
+import type { ProjectName } from '../domain/project-name';
 import type { ProjectRepository } from '../domain/project-repository';
 
 export const FIXED_NOW: Dayjs = dayjs('2026-05-18T00:00:00.000Z');
@@ -37,6 +38,15 @@ export class InMemoryProjectRepository implements ProjectRepository {
 
   save(project: Project): Promise<void> {
     this.#byId.set(project.id.value, project);
+    return Promise.resolve();
+  }
+
+  rename(id: ProjectId, name: ProjectName): Promise<void> {
+    // 名称のみ差し替え、メンバー等は保持（DB 実装と同じ粒度）。
+    const project = this.#byId.get(id.value);
+    if (project !== undefined) {
+      project.rename(name);
+    }
     return Promise.resolve();
   }
 

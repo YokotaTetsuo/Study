@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../shared-kernel/validation-error';
 import {
@@ -48,6 +48,25 @@ describe('RenameProjectUseCase', () => {
     expect(result.name).toBe('新名');
     const persisted = await projects.findById(new ProjectId(PROJECT_ID_1));
     expect(persisted?.name.value).toBe('新名');
+  });
+
+  it('should persist via the granular rename, not a full save', async () => {
+    const projects = await seeded();
+    const renameSpy = vi.spyOn(projects, 'rename');
+    const saveSpy = vi.spyOn(projects, 'save');
+    const useCase = new RenameProjectUseCase({ projects });
+
+    await useCase.execute({
+      projectId: PROJECT_ID_1,
+      actingUserId: OWNER_ID,
+      name: '新名',
+    });
+
+    expect(renameSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ value: PROJECT_ID_1 }),
+      expect.objectContaining({ value: '新名' }),
+    );
+    expect(saveSpy).not.toHaveBeenCalled();
   });
 
   it('should reject a non-owner', async () => {
