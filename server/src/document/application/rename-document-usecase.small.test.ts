@@ -96,6 +96,7 @@ describe('RenameDocumentUseCase', () => {
       findById: () => Promise.resolve(loaded),
       listByProject: () => Promise.resolve([]),
       save: () => Promise.reject(new StaleDocumentError()),
+      delete: () => Promise.reject(new Error('not used')),
     };
     const useCase = new RenameDocumentUseCase({
       documents: conflicting,

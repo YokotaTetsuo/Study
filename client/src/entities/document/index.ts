@@ -20,4 +20,5 @@ export {
   listComments,
   addComment,
   deleteComment,
+  deleteDocument,
 } from './api/document-api';

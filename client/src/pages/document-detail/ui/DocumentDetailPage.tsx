@@ -17,6 +17,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { versionFileUrl } from '../../../entities/document';
 import { useMe } from '../../../features/auth';
 import {
+  DeleteDocumentButton,
+  DeleteDocumentDialog,
   RenameDocumentButton,
   RenameDocumentDialog,
   useDocument,
@@ -84,6 +86,9 @@ export function DocumentDetailPage(): ReactElement {
   const [selected, setSelected] = useState<number | null>(null);
   // 名称変更ダイアログの open state は page が所有する（client-fsd Portal 規約）。
   const [renameOpen, setRenameOpen] = useState(false);
+  // 削除確認ダイアログの open state は page が所有する
+  // （client-fsd Portal 規約）。
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // 現在ユーザーのプロジェクト内ロールと承認ポリシーから、提示してよい
   // 操作を導く（403 になるボタンを出さない）。未取得時は全操作不可。
@@ -170,11 +175,18 @@ export function DocumentDetailPage(): ReactElement {
         sx={{ mb: 1 }}
       >
         <Typography variant="h5">{d.name}</Typography>
-        <RenameDocumentButton
-          onClick={() => {
-            setRenameOpen(true);
-          }}
-        />
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <RenameDocumentButton
+            onClick={() => {
+              setRenameOpen(true);
+            }}
+          />
+          <DeleteDocumentButton
+            onClick={() => {
+              setDeleteOpen(true);
+            }}
+          />
+        </Stack>
       </Stack>
 
       {d.officialVersionNumber !== null && (
@@ -313,6 +325,20 @@ export function DocumentDetailPage(): ReactElement {
         open={renameOpen}
         onClose={() => {
           setRenameOpen(false);
+        }}
+      />
+      <DeleteDocumentDialog
+        documentId={documentId}
+        documentName={d.name}
+        open={deleteOpen}
+        onClose={() => {
+          setDeleteOpen(false);
+        }}
+        onDeleted={() => {
+          void navigate({
+            to: '/projects/$projectId/documents',
+            params: { projectId: d.projectId },
+          });
         }}
       />
     </>

@@ -179,6 +179,13 @@ export class DrizzleDocumentRepository implements DocumentRepository {
     );
   }
 
+  async delete(id: DocumentId): Promise<void> {
+    // documents 行を消すだけで document_versions（ON DELETE cascade）と
+    // document_comments（版複合キーへ ON DELETE cascade）が DB FK で
+    // 連鎖削除される（schema.ts 参照）。アプリ側で連鎖を組まない。
+    await this.#db.delete(documents).where(eq(documents.id, id.value));
+  }
+
   async save(document: Document): Promise<void> {
     const docRow = {
       id: document.id.value,

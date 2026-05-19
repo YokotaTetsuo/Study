@@ -83,6 +83,11 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     this.#byId.set(document.id.value, cloneDocument(document));
     return Promise.resolve();
   }
+
+  delete(id: DocumentId): Promise<void> {
+    this.#byId.delete(id.value);
+    return Promise.resolve();
+  }
 }
 
 /** インメモリのファイルストレージ。put した内容をそのまま get で返す。 */
