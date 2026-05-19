@@ -1,4 +1,4 @@
-import { Alert, Stack } from '@mui/material';
+import { Alert, Grid2 } from '@mui/material';
 import { useParams } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
@@ -10,9 +10,11 @@ import { PdfViewer } from '../../../shared/ui/PdfViewer';
 import { SectionCard } from '../../../shared/ui/SectionCard';
 
 /**
- * 版 PDF のみを表示する専用ページ。文書詳細の埋め込みより広い領域で
- * 閲覧でき、将来このページにアノテーション UI（ツールバー/レイヤー）を
- * 載せる土台とする。下部に版コメントスレッドを置く。
+ * 版 PDF を主役に閲覧する専用ページ。版単位の閲覧とコメントを
+ * このページ内で完結させるため、左に PDF プレビュー（主役）、右に
+ * その版のコメント（一覧＋投稿＋編集）を 2 カラムで並べる。`lg`
+ * 未満は 1 カラムへフォールバックする。将来このページにアノテーション
+ * UI（ツールバー/レイヤー）を載せる土台とする。
  */
 export function VersionViewerPage(): ReactElement {
   const { documentId, versionNumber } = useParams({
@@ -29,19 +31,25 @@ export function VersionViewerPage(): ReactElement {
   return (
     <>
       <PageHeader title={`v${String(parsed)} のプレビュー`} />
-      <Stack spacing={3}>
-        {/* PDF を主役に最大表示。将来ここにアノテーション層を重ねる。 */}
-        <SectionCard>
-          <PdfViewer src={versionFileUrl(documentId, parsed)} fitToWidth />
-        </SectionCard>
-        <SectionCard title="コメント">
-          <CommentThread
-            documentId={documentId}
-            versionNumber={parsed}
-            currentUserId={me.data?.id}
-          />
-        </SectionCard>
-      </Stack>
+      <Grid2 container spacing={3} alignItems="stretch">
+        {/* 左カラム: PDF を主役に最大表示。将来ここにアノテーション層を重ねる。 */}
+        <Grid2 size={{ xs: 12, lg: 8 }}>
+          <SectionCard fullHeight>
+            <PdfViewer src={versionFileUrl(documentId, parsed)} fitToWidth />
+          </SectionCard>
+        </Grid2>
+
+        {/* 右カラム: その版のコメント（一覧＋投稿＋編集）。 */}
+        <Grid2 size={{ xs: 12, lg: 4 }}>
+          <SectionCard title={`v${String(parsed)} のコメント`} fullHeight>
+            <CommentThread
+              documentId={documentId}
+              versionNumber={parsed}
+              currentUserId={me.data?.id}
+            />
+          </SectionCard>
+        </Grid2>
+      </Grid2>
     </>
   );
 }
