@@ -8,6 +8,7 @@ import {
   FakeProjectAccess,
   FIXED_NOW,
   InMemoryDocumentRepository,
+  MEMBER_DISPLAY_NAME,
   MEMBER_ID,
   OTHER_MEMBER_ID,
   OUTSIDER_ID,
@@ -79,6 +80,50 @@ describe('EditCommentUseCase', () => {
     expect(result.createdAt.valueOf()).toBe(FIXED_NOW.valueOf());
     const persisted = await documents.findById(new DocumentId(DOCUMENT_ID));
     expect(persisted?.commentsOf(1)[0]?.content.value).toBe('誤記を修正');
+  });
+
+  it('should resolve the author display name when the directory knows it', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithComment(documents);
+    const useCase = new EditCommentUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({
+        [MEMBER_ID]: MEMBER_DISPLAY_NAME,
+      }),
+      clock: editClock,
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      commentId: COMMENT_ID,
+      actingUserId: MEMBER_ID,
+      content: '誤記を修正',
+    });
+
+    expect(result.authorDisplayName).toBe(MEMBER_DISPLAY_NAME);
+  });
+
+  it('should fall back to null when the author display name is unresolved', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithComment(documents);
+    const useCase = new EditCommentUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
+      clock: editClock,
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      commentId: COMMENT_ID,
+      actingUserId: MEMBER_ID,
+      content: '誤記を修正',
+    });
+
+    expect(result.authorDisplayName).toBeNull();
   });
 
   it('should persist when the edit actually changes the content', async () => {
