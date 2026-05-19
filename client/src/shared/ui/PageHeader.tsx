@@ -33,7 +33,15 @@ export function PageHeader({
           {title}
         </Typography>
         {subtitle !== undefined && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          // subtitle は ReactNode（Stack 等のブロック要素も来る）。
+          // 既定の <p> だと <p> 内ブロック要素となり不正な HTML に
+          // なるため component="div" でラップ要素を div にする。
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            component="div"
+            sx={{ mt: 0.5 }}
+          >
             {subtitle}
           </Typography>
         )}
