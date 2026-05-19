@@ -112,7 +112,7 @@ export function UploadDropzone({
         role="button"
         tabIndex={pending ? -1 : 0}
         aria-disabled={pending}
-        aria-label="PDF をドラッグ&ドロップ、またはクリックして選択"
+        aria-label={`PDF をドラッグ&ドロップ、またはクリックして選択（${ACCEPTED_MIME} / 最大 ${MAX_FILE_SIZE_LABEL}）`}
         onClick={openPicker}
         onKeyDown={handleKeyDown}
         onDragOver={(e) => {
@@ -163,14 +163,14 @@ export function UploadDropzone({
       {file !== null && (
         <Stack
           direction="row"
-          spacing={1}
+          spacing={compact ? 1 : 2}
           alignItems="center"
           sx={{ mt: compact ? 1 : 2 }}
         >
           <Typography
             variant={compact ? 'body2' : 'body1'}
-            noWrap
-            sx={{ flexGrow: 1, minWidth: 0 }}
+            noWrap={compact}
+            sx={{ flexGrow: 1, minWidth: compact ? 0 : undefined }}
           >
             選択中: {file.name}（{formatSize(file.size)}）
           </Typography>

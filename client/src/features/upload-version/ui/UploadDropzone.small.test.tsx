@@ -129,5 +129,16 @@ describe('UploadDropzone', () => {
       /PDF をドラッグ&ドロップ、またはクリックして選択（最大/,
     );
     expect(prompt.textContent).toMatch(/最大/);
+    // 旧 2 行目（MIME を含む独立行）が描画されていないこと＝1 行化の退行検知。
+    expect(screen.queryByText(/^application\/pdf \/ 最大/)).toBeNull();
+  });
+
+  it('should keep the prompt on two lines in the default (non-compact) mode', () => {
+    renderDropzone();
+
+    expect(
+      screen.getByText('PDF をドラッグ&ドロップ、またはクリックして選択'),
+    ).toBeTruthy();
+    expect(screen.getByText(/^application\/pdf \/ 最大/)).toBeTruthy();
   });
 });
