@@ -1,6 +1,6 @@
 import { Alert, Box, Chip, Grid2, Stack, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
@@ -87,6 +87,12 @@ export function DocumentDetailPage(): ReactElement {
   ].some((m) => m.isError);
 
   const versions = document.data?.versions;
+  // versions 由来の降順ソートは毎レンダー再計算しないよう memo 化する
+  // （selected / workflow フラグ変化で再描画されるため）。
+  const sortedVersions = useMemo(
+    () => sortVersionsDesc(versions ?? []),
+    [versions],
+  );
   // 同一ルートで documentId だけが変わる遷移ではコンポーネントが
   // アンマウントされず、前の文書で選んだ版番号が selected に残る。
   // versions（文書切替で参照が変わる）に追従して整合させ、別文書に
@@ -210,7 +216,7 @@ export function DocumentDetailPage(): ReactElement {
 
             <SectionCard title="版履歴">
               <VersionHistoryList
-                versions={sortVersionsDesc(d.versions)}
+                versions={sortedVersions}
                 selected={selected}
                 permissions={permissions}
                 workflowPending={workflowPending}
