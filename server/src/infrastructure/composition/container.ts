@@ -12,6 +12,7 @@ import { AddCommentUseCase } from '../../document/application/add-comment-usecas
 import { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
 import { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
 import { DeleteDocumentUseCase } from '../../document/application/delete-document-usecase';
+import { EditCommentUseCase } from '../../document/application/edit-comment-usecase';
 import { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
@@ -129,6 +130,11 @@ export function createContainer(env: Env): Container {
         clock,
       }),
       listComments: new ListCommentsUseCase({ documents, projectAccess }),
+      editComment: new EditCommentUseCase({
+        documents,
+        projectAccess,
+        clock,
+      }),
       deleteComment: new DeleteCommentUseCase({ documents, projectAccess }),
       sessions,
     },

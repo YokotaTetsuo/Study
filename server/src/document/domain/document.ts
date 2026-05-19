@@ -16,25 +16,29 @@ import { VersionStatus } from './version-status';
 
 /**
  * 版に紐づくコメント（Document 集約の内部エンティティ）。
- * クラスは export せず、集約ルート経由でのみ生成・削除する
- * （`server-aggregate-internal-entity.md`）。本文は不変で、編集はしない。
+ * クラスは export せず、集約ルート経由でのみ生成・編集・削除する
+ * （`server-aggregate-internal-entity.md`）。本文は著者本人のみ編集でき、
+ * 編集すると updatedAt を更新する。
  */
 class Comment {
   readonly #id: CommentId;
   readonly #authorId: CommentAuthorId;
-  readonly #content: CommentContent;
+  #content: CommentContent;
   readonly #createdAt: Dayjs;
+  #updatedAt: Dayjs;
 
   private constructor(params: {
     id: CommentId;
     authorId: CommentAuthorId;
     content: CommentContent;
     createdAt: Dayjs;
+    updatedAt: Dayjs;
   }) {
     this.#id = params.id;
     this.#authorId = params.authorId;
     this.#content = params.content;
     this.#createdAt = params.createdAt;
+    this.#updatedAt = params.updatedAt;
   }
 
   // 新規追加・永続化復元で構築時不変条件に差が無いため単一ファクトリ。
@@ -44,6 +48,7 @@ class Comment {
     authorId: CommentAuthorId;
     content: CommentContent;
     createdAt: Dayjs;
+    updatedAt: Dayjs;
   }): Comment {
     return new Comment(params);
   }
@@ -63,6 +68,26 @@ class Comment {
   get createdAt(): Dayjs {
     return this.#createdAt;
   }
+
+  get updatedAt(): Dayjs {
+    return this.#updatedAt;
+  }
+
+  /**
+   * 本文を編集する。著者本人のみ編集でき、著者違いは Forbidden。
+   * 編集に成功したら updatedAt を編集時刻へ更新する。
+   */
+  edit(params: {
+    content: CommentContent;
+    requesterId: CommentAuthorId;
+    editedAt: Dayjs;
+  }): void {
+    if (!this.#authorId.equals(params.requesterId)) {
+      throw new CommentForbiddenError();
+    }
+    this.#content = params.content;
+    this.#updatedAt = params.editedAt;
+  }
 }
 
 /**
@@ -74,6 +99,7 @@ export interface CommentReadonly {
   readonly authorId: CommentAuthorId;
   readonly content: CommentContent;
   readonly createdAt: Dayjs;
+  readonly updatedAt: Dayjs;
 }
 
 class DocumentVersion {
@@ -128,6 +154,7 @@ class DocumentVersion {
       readonly authorId: string;
       readonly content: string;
       readonly createdAt: Dayjs;
+      readonly updatedAt: Dayjs;
     }[];
   }): DocumentVersion {
     const comments = [...params.commentsData]
@@ -138,6 +165,7 @@ class DocumentVersion {
           authorId: new CommentAuthorId(d.authorId),
           content: new CommentContent(d.content),
           createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
         }),
       );
     return new DocumentVersion({
@@ -202,7 +230,8 @@ class DocumentVersion {
     content: CommentContent;
     createdAt: Dayjs;
   }): CommentReadonly {
-    const comment = Comment.of(params);
+    // 追加直後は未編集なので updatedAt = createdAt（編集で更新される）。
+    const comment = Comment.of({ ...params, updatedAt: params.createdAt });
     // createdAt 昇順を不変条件として保持する。呼び出し側クロックの
     // 単調性に依存せず、最初に「より新しい」要素の手前へ挿入する
     // （同時刻は既存の後 = 挿入順を保ち、安定ソートする reconstruct と
@@ -229,6 +258,26 @@ class DocumentVersion {
       throw new CommentForbiddenError();
     }
     this.#comments.splice(index, 1);
+  }
+
+  /**
+   * 本文を編集し、編集後の読み取りビューを返す。著者本人のみ編集可。
+   * 未存在は NotFound、著者違いは Comment 側が Forbidden を送出する。
+   */
+  editComment(
+    commentId: CommentId,
+    params: {
+      content: CommentContent;
+      requesterId: CommentAuthorId;
+      editedAt: Dayjs;
+    },
+  ): CommentReadonly {
+    const comment = this.#comments.find((c) => c.id.equals(commentId));
+    if (comment === undefined) {
+      throw new CommentNotFoundError();
+    }
+    comment.edit(params);
+    return comment;
   }
 }
 
@@ -311,6 +360,7 @@ export class Document {
         readonly authorId: string;
         readonly content: string;
         readonly createdAt: Dayjs;
+        readonly updatedAt: Dayjs;
       }[];
     }[];
     officialVersionNumber?: number | null;
@@ -453,6 +503,22 @@ export class Document {
     requesterId: CommentAuthorId,
   ): void {
     this.#requireVersion(versionNumber).deleteComment(commentId, requesterId);
+  }
+
+  /**
+   * 版コメントの本文を編集し、編集後の読み取りビューを返す。
+   * 著者本人のみ編集可。版/コメント未存在は各エラー、著者違いは Forbidden。
+   */
+  editComment(
+    versionNumber: number,
+    commentId: CommentId,
+    params: {
+      content: CommentContent;
+      requesterId: CommentAuthorId;
+      editedAt: Dayjs;
+    },
+  ): CommentReadonly {
+    return this.#requireVersion(versionNumber).editComment(commentId, params);
   }
 
   /** 版のコメント一覧（追加順）。 */

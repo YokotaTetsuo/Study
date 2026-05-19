@@ -347,12 +347,14 @@ describe('Document comments', () => {
               authorId: AUTHOR_ID,
               content: '後のコメント',
               createdAt: later,
+              updatedAt: later,
             },
             {
               id: COMMENT_A,
               authorId: AUTHOR_ID,
               content: '先のコメント',
               createdAt: earlier,
+              updatedAt: earlier,
             },
           ],
         },
@@ -363,6 +365,84 @@ describe('Document comments', () => {
       COMMENT_A,
       COMMENT_B,
     ]);
+  });
+
+  it('should set updatedAt equal to createdAt for a freshly added comment', () => {
+    const doc = docWithOneVersion();
+
+    const added = doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('未編集のコメント'),
+      createdAt: NOW,
+    });
+
+    expect(added.updatedAt.valueOf()).toBe(added.createdAt.valueOf());
+  });
+
+  it('should let the author edit their own comment and bump updatedAt', () => {
+    const doc = docWithOneVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('誤記あり'),
+      createdAt: NOW,
+    });
+    const editedAt = NOW.add(1, 'hour');
+
+    const edited = doc.editComment(1, new CommentId(COMMENT_A), {
+      content: new CommentContent('  誤記を修正  '),
+      requesterId: new CommentAuthorId(AUTHOR_ID),
+      editedAt,
+    });
+
+    expect(edited.content.value).toBe('誤記を修正');
+    expect(edited.updatedAt.valueOf()).toBe(editedAt.valueOf());
+    expect(edited.createdAt.valueOf()).toBe(NOW.valueOf());
+    expect(doc.commentsOf(1)[0]?.content.value).toBe('誤記を修正');
+  });
+
+  it('should forbid editing a comment authored by someone else', () => {
+    const doc = docWithOneVersion();
+    doc.addComment(1, {
+      id: new CommentId(COMMENT_A),
+      authorId: new CommentAuthorId(AUTHOR_ID),
+      content: new CommentContent('他人のコメント'),
+      createdAt: NOW,
+    });
+
+    expect(() => {
+      doc.editComment(1, new CommentId(COMMENT_A), {
+        content: new CommentContent('改竄'),
+        requesterId: new CommentAuthorId(OTHER_ID),
+        editedAt: NOW.add(1, 'hour'),
+      });
+    }).toThrow(CommentForbiddenError);
+    expect(doc.commentsOf(1)[0]?.content.value).toBe('他人のコメント');
+  });
+
+  it('should reject editing a non-existent comment', () => {
+    const doc = docWithOneVersion();
+
+    expect(() => {
+      doc.editComment(1, new CommentId(COMMENT_A), {
+        content: new CommentContent('x'),
+        requesterId: new CommentAuthorId(AUTHOR_ID),
+        editedAt: NOW,
+      });
+    }).toThrow(CommentNotFoundError);
+  });
+
+  it('should reject editing a comment on a non-existent version', () => {
+    const doc = docWithOneVersion();
+
+    expect(() => {
+      doc.editComment(2, new CommentId(COMMENT_A), {
+        content: new CommentContent('x'),
+        requesterId: new CommentAuthorId(AUTHOR_ID),
+        editedAt: NOW,
+      });
+    }).toThrow(VersionNotFoundError);
   });
 });
 

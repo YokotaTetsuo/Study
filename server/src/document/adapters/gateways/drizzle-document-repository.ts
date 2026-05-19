@@ -18,6 +18,7 @@ interface CommentData {
   authorId: string;
   content: string;
   createdAt: Dayjs;
+  updatedAt: Dayjs;
 }
 
 function commentsByVersion(
@@ -27,6 +28,7 @@ function commentsByVersion(
     authorId: string;
     content: string;
     createdAt: Date;
+    updatedAt: Date;
   }[],
 ): Map<number, CommentData[]> {
   const map = new Map<number, CommentData[]>();
@@ -37,6 +39,7 @@ function commentsByVersion(
       authorId: c.authorId,
       content: c.content,
       createdAt: dayjs(c.createdAt),
+      updatedAt: dayjs(c.updatedAt),
     });
     map.set(c.versionNumber, list);
   }
@@ -283,8 +286,9 @@ export class DrizzleDocumentRepository implements DocumentRepository {
             ),
           );
       }
-      // コメントはイミュータブル（編集なし）。集約と DB の差分から
-      // 新規追加分を insert、削除分を delete するだけで同期できる。
+      // コメントは追加・削除に加え本文編集される。集約と DB の差分から
+      // 新規追加分を insert、削除分を delete、本文/更新時刻が変わった分を
+      // update して同期する。
       const aggregateComments = document.versions.flatMap((v) =>
         v.comments.map((c) => ({
           id: c.id.value,
@@ -293,21 +297,44 @@ export class DrizzleDocumentRepository implements DocumentRepository {
           authorId: c.authorId.value,
           content: c.content.value,
           createdAt: c.createdAt.toDate(),
+          updatedAt: c.updatedAt.toDate(),
         })),
       );
       const persistedCommentRows = await tx
-        .select({ id: documentComments.id })
+        .select({
+          id: documentComments.id,
+          content: documentComments.content,
+          updatedAt: documentComments.updatedAt,
+        })
         .from(documentComments)
         .where(eq(documentComments.documentId, document.id.value));
-      const persistedCommentIds = new Set(
-        persistedCommentRows.map((r) => r.id),
+      const persistedCommentById = new Map(
+        persistedCommentRows.map((r) => [r.id, r]),
       );
+      const persistedCommentIds = new Set(persistedCommentById.keys());
       const aggregateCommentIds = new Set(aggregateComments.map((c) => c.id));
       const commentsToInsert = aggregateComments.filter(
         (c) => !persistedCommentIds.has(c.id),
       );
       if (commentsToInsert.length > 0) {
         await tx.insert(documentComments).values(commentsToInsert);
+      }
+      // 本文が編集された既存コメントだけ content/updated_at を更新する
+      // （未変更行への無駄な UPDATE を避ける）。
+      for (const c of aggregateComments) {
+        const prev = persistedCommentById.get(c.id);
+        if (prev === undefined || prev.content === c.content) {
+          continue;
+        }
+        await tx
+          .update(documentComments)
+          .set({ content: c.content, updatedAt: c.updatedAt })
+          .where(
+            and(
+              eq(documentComments.documentId, document.id.value),
+              eq(documentComments.id, c.id),
+            ),
+          );
       }
       const commentIdsToDelete = [...persistedCommentIds].filter(
         (id) => !aggregateCommentIds.has(id),

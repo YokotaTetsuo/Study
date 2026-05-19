@@ -7,6 +7,7 @@ export interface CommentResult {
   readonly authorId: string;
   readonly content: string;
   readonly createdAt: Dayjs;
+  readonly updatedAt: Dayjs;
 }
 
 export function toCommentResult(comment: CommentReadonly): CommentResult {
@@ -15,5 +16,6 @@ export function toCommentResult(comment: CommentReadonly): CommentResult {
     authorId: comment.authorId.value,
     content: comment.content.value,
     createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
   };
 }

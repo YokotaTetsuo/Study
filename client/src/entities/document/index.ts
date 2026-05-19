@@ -19,6 +19,7 @@ export {
   versionFileUrl,
   listComments,
   addComment,
+  updateComment,
   deleteComment,
   deleteDocument,
 } from './api/document-api';

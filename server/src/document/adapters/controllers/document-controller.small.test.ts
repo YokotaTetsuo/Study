@@ -39,6 +39,7 @@ const COMMENT_RESULT: CommentResult = {
   authorId: USER_ID,
   content: '配置を見直してください',
   createdAt: dayjs('2026-05-18T00:00:00.000Z'),
+  updatedAt: dayjs('2026-05-18T00:00:00.000Z'),
 };
 
 const loggedIn: SessionStore = {
@@ -68,6 +69,7 @@ function deps(
     },
     addComment: { execute: vi.fn().mockResolvedValue(COMMENT_RESULT) },
     listComments: { execute: vi.fn().mockResolvedValue([COMMENT_RESULT]) },
+    editComment: { execute: vi.fn().mockResolvedValue(COMMENT_RESULT) },
     deleteComment: { execute: vi.fn().mockResolvedValue(undefined) },
     sessions,
     ...overrides,
@@ -93,6 +95,18 @@ function putJson(path: string, body: unknown, cookie?: string): Request {
   }
   return new Request(`http://local${path}`, {
     method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+function patchJson(path: string, body: unknown, cookie?: string): Request {
+  const headers = new Headers([['content-type', 'application/json']]);
+  if (cookie !== undefined) {
+    headers.set('cookie', cookie);
+  }
+  return new Request(`http://local${path}`, {
+    method: 'PATCH',
     headers,
     body: JSON.stringify(body),
   });
@@ -345,6 +359,71 @@ describe('document controller', () => {
     );
 
     expect(res.status).toBe(204);
+  });
+
+  it('should edit a comment and return 200 with the comment', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      patchJson(
+        `/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`,
+        { content: '修正後の本文' },
+        'sid=a',
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const body: unknown = await res.json();
+    expect(body).toMatchObject({ id: COMMENT_ID, authorId: USER_ID });
+  });
+
+  it('should require authentication to edit a comment (401)', async () => {
+    const app = createDocumentApp(deps(anon));
+
+    const res = await app.request(
+      patchJson(`/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`, {
+        content: 'x',
+      }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should reject editing with an empty body (400)', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      patchJson(
+        `/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`,
+        { content: '   ' },
+        'sid=a',
+      ),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it('should map CommentForbiddenError to 403 on edit', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        editComment: {
+          execute: vi.fn().mockRejectedValue(new CommentForbiddenError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      patchJson(
+        `/documents/${DOC_ID}/versions/1/comments/${COMMENT_ID}`,
+        { content: 'x' },
+        'sid=a',
+      ),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get('content-type')).toContain(
+      'application/problem+json',
+    );
   });
 
   it('should map CommentForbiddenError to 403 on delete', async () => {

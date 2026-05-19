@@ -7,6 +7,7 @@ import {
   COMMENTS_QUERY_KEY,
   commentsQueryOptions,
   deleteComment,
+  updateComment,
 } from '../../../entities/document';
 
 export function useComments(
@@ -32,6 +33,28 @@ export function useAddComment(
   return useMutation({
     mutationFn: (content: string) =>
       addComment(documentId, versionNumber, content),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: versionCommentsKey(documentId, versionNumber),
+      });
+    },
+  });
+}
+
+/** 編集対象を一意に決める引数（コメント ID と新本文）。 */
+export interface EditCommentInput {
+  readonly commentId: string;
+  readonly content: string;
+}
+
+export function useEditComment(
+  documentId: string,
+  versionNumber: number,
+): UseMutationResult<Comment, Error, EditCommentInput> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId, content }: EditCommentInput) =>
+      updateComment(documentId, versionNumber, commentId, content),
     onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: versionCommentsKey(documentId, versionNumber),

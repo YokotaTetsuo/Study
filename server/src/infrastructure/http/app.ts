@@ -12,6 +12,7 @@ import type { AddCommentUseCase } from '../../document/application/add-comment-u
 import type { CreateDocumentUseCase } from '../../document/application/create-document-usecase';
 import type { DeleteCommentUseCase } from '../../document/application/delete-comment-usecase';
 import type { DeleteDocumentUseCase } from '../../document/application/delete-document-usecase';
+import type { EditCommentUseCase } from '../../document/application/edit-comment-usecase';
 import type { GetDocumentUseCase } from '../../document/application/get-document-usecase';
 import type { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import type { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
@@ -66,6 +67,7 @@ interface AppDeps {
     readonly getVersionFile: GetVersionFileUseCase;
     readonly addComment: AddCommentUseCase;
     readonly listComments: ListCommentsUseCase;
+    readonly editComment: EditCommentUseCase;
     readonly deleteComment: DeleteCommentUseCase;
     readonly sessions: SessionStore;
   };
