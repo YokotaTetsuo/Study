@@ -29,7 +29,10 @@ export function PageHeader({
       sx={{ mb: 3 }}
     >
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h4" sx={{ fontWeight: 600 }} noWrap>
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}
+        >
           {title}
         </Typography>
         {subtitle !== undefined && (

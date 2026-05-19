@@ -65,6 +65,7 @@ export function VersionHistoryList({
         return (
           <Box
             key={v.versionNumber}
+            component="li"
             sx={{
               border: 1,
               borderColor: isSelected ? 'primary.main' : 'divider',

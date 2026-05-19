@@ -83,8 +83,8 @@ export function AppShell(): ReactElement {
   // 親が無い（最上位 = trail が 1 要素）なら null。
   const parentCrumb = trail[trail.length - 2] ?? null;
   // PDF を主役にするページ（版プレビュー専用 / 文書詳細）は横方向の
-  // レイアウトを活かすため Container を md→xl へ拡張する（全幅では
-  // なく xl 上限。超ワイドでの可読性低下を避ける）。
+  // レイアウトを最大限活かすため Container の幅制約を完全に外す
+  // （maxWidth={false} = 全幅）。それ以外は md 上限で可読性を確保する。
   const wide =
     leafRouteId ===
       '/projects/$projectId/documents/$documentId/versions/$versionNumber' ||
@@ -145,7 +145,7 @@ export function AppShell(): ReactElement {
           </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth={wide ? 'xl' : 'md'} sx={{ py: 4 }}>
+      <Container maxWidth={wide ? false : 'md'} sx={{ py: 4 }}>
         <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
           <BackButton parent={parentCrumb} />
           <AppBreadcrumbs trail={trail} />
