@@ -36,3 +36,8 @@ export async function seedProject(
 export async function truncateProjectMembers(client: DbClient): Promise<void> {
   await client.sql`truncate table project_members, projects restart identity cascade`;
 }
+
+/** users を空にする（SqlAuthorDirectory テスト用）。 */
+export async function truncateUsers(client: DbClient): Promise<void> {
+  await client.sql`truncate table users restart identity cascade`;
+}
