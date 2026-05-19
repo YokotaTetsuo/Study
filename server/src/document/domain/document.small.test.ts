@@ -402,6 +402,32 @@ describe('Document comments', () => {
     expect(doc.commentsOf(1)[0]?.content.value).toBe('誤記を修正');
   });
 
+  it.each([
+    { input: '誤記あり', reason: '完全一致' },
+    { input: '  誤記あり  ', reason: 'trim 後に一致（前後空白のみ差分）' },
+  ])(
+    'should keep updatedAt unchanged when normalized content is identical ($reason)',
+    ({ input }) => {
+      const doc = docWithOneVersion();
+      doc.addComment(1, {
+        id: new CommentId(COMMENT_A),
+        authorId: new CommentAuthorId(AUTHOR_ID),
+        content: new CommentContent('誤記あり'),
+        createdAt: NOW,
+      });
+
+      const edited = doc.editComment(1, new CommentId(COMMENT_A), {
+        content: new CommentContent(input),
+        requesterId: new CommentAuthorId(AUTHOR_ID),
+        editedAt: NOW.add(1, 'hour'),
+      });
+
+      expect(edited.content.value).toBe('誤記あり');
+      expect(edited.updatedAt.valueOf()).toBe(NOW.valueOf());
+      expect(doc.commentsOf(1)[0]?.updatedAt.valueOf()).toBe(NOW.valueOf());
+    },
+  );
+
   it('should forbid editing a comment authored by someone else', () => {
     const doc = docWithOneVersion();
     doc.addComment(1, {
