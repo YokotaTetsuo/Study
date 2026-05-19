@@ -7,6 +7,7 @@ import { DocumentId } from '../domain/document-id';
 import { DocumentNotFoundError } from '../domain/document-not-found-error';
 import type { DocumentRepository } from '../domain/document-repository';
 
+import type { AuthorDirectory } from './author-directory';
 import { toCommentResult } from './comment-result';
 import type { CommentResult } from './comment-result';
 import { NotAuthorizedError } from './not-authorized-error';
@@ -22,6 +23,7 @@ export interface AddCommentCommand {
 interface Deps {
   readonly documents: DocumentRepository;
   readonly projectAccess: ProjectAccess;
+  readonly authorDirectory: AuthorDirectory;
   readonly idGenerator: IdGenerator;
   readonly clock: Clock;
 }
@@ -30,12 +32,14 @@ interface Deps {
 export class AddCommentUseCase {
   readonly #documents: DocumentRepository;
   readonly #projectAccess: ProjectAccess;
+  readonly #authorDirectory: AuthorDirectory;
   readonly #idGenerator: IdGenerator;
   readonly #clock: Clock;
 
   constructor(deps: Deps) {
     this.#documents = deps.documents;
     this.#projectAccess = deps.projectAccess;
+    this.#authorDirectory = deps.authorDirectory;
     this.#idGenerator = deps.idGenerator;
     this.#clock = deps.clock;
   }
@@ -63,6 +67,12 @@ export class AddCommentUseCase {
       createdAt: this.#clock.now(),
     });
     await this.#documents.save(document);
-    return toCommentResult(comment);
+    const displayNames = await this.#authorDirectory.findDisplayNames([
+      comment.authorId.value,
+    ]);
+    return toCommentResult(
+      comment,
+      displayNames.get(comment.authorId.value) ?? null,
+    );
   }
 }

@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   COMMENT_ID,
   DOCUMENT_ID,
+  FakeAuthorDirectory,
   FakeProjectAccess,
   FIXED_NOW,
   InMemoryDocumentRepository,
+  MEMBER_DISPLAY_NAME,
   MEMBER_ID,
   OUTSIDER_ID,
   PROJECT_ID,
@@ -54,6 +56,9 @@ describe('ListCommentsUseCase', () => {
     const useCase = new ListCommentsUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({
+        [MEMBER_ID]: MEMBER_DISPLAY_NAME,
+      }),
     });
 
     const result = await useCase.execute({
@@ -64,7 +69,28 @@ describe('ListCommentsUseCase', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe(COMMENT_ID);
+    expect(result[0]?.authorDisplayName).toBe(MEMBER_DISPLAY_NAME);
     expect(result[0]?.content).toBe('最初のコメント');
+  });
+
+  it('should return null display name when the author is unresolved', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithComment(documents);
+    const useCase = new ListCommentsUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      // 著者の表示名を解決できないディレクトリ（ユーザー削除等を模す）。
+      authorDirectory: new FakeAuthorDirectory({}),
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      actingUserId: MEMBER_ID,
+    });
+
+    expect(result[0]?.authorId).toBe(MEMBER_ID);
+    expect(result[0]?.authorDisplayName).toBeNull();
   });
 
   it('should reject a non-member', async () => {
@@ -73,6 +99,7 @@ describe('ListCommentsUseCase', () => {
     const useCase = new ListCommentsUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
     });
 
     await expect(
@@ -90,6 +117,7 @@ describe('ListCommentsUseCase', () => {
     const useCase = new ListCommentsUseCase({
       documents,
       projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      authorDirectory: new FakeAuthorDirectory({}),
     });
 
     await expect(

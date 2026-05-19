@@ -59,6 +59,9 @@ export type DocumentListResponse = z.infer<typeof documentListResponseSchema>;
 export const commentSchema = z.object({
   id: z.string(),
   authorId: z.string(),
+  // 著者の表示名。著者が解決できない場合（ユーザー削除・参照不能等）は
+  // null とし、表示側は authorId を併記してフォールバックする契約。
+  authorDisplayName: z.string().min(1).nullable(),
   // レスポンスは server 側の意味的な値をそのまま表現する契約のため、
   // ここで .trim() による正規化はしない（受信値を書き換えない）。
   // 「trim 済み」は domain CommentContent 経由で生成される前提に基づく

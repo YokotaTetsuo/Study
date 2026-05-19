@@ -35,6 +35,7 @@ function aComment(content: string): Comment {
   return {
     id: COMMENT_ID,
     authorId: AUTHOR,
+    authorDisplayName: null,
     content,
     createdAt: '2026-04-15T00:00:00.000Z',
     updatedAt: '2026-04-15T00:00:00.000Z',

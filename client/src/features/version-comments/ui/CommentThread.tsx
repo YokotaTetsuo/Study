@@ -9,6 +9,7 @@ import {
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 
+import { authorLabel } from '../lib/author-label';
 import {
   useAddComment,
   useComments,
@@ -73,7 +74,7 @@ export function CommentThread({
                 >
                   <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                     <Typography variant="caption" color="text.secondary">
-                      {c.authorId} ・{' '}
+                      {authorLabel(c.authorId, c.authorDisplayName)} ・{' '}
                       {new Date(c.createdAt).toLocaleString('ja-JP')}
                       {c.updatedAt !== c.createdAt && ' ・ 編集済み'}
                     </Typography>
