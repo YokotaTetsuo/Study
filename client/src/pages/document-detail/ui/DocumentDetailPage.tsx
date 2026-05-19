@@ -23,6 +23,7 @@ import {
   useVersionWorkflow,
 } from '../../../features/version-workflow';
 import { prefetchPdf } from '../../../shared/lib/pdf-cache';
+import { sortVersionsDesc } from '../../../shared/lib/sort-versions';
 import { PageHeader } from '../../../shared/ui/PageHeader';
 import { PdfViewer } from '../../../shared/ui/PdfViewer';
 import { SectionCard } from '../../../shared/ui/SectionCard';
@@ -209,7 +210,7 @@ export function DocumentDetailPage(): ReactElement {
 
             <SectionCard title="版履歴">
               <VersionHistoryList
-                versions={d.versions}
+                versions={sortVersionsDesc(d.versions)}
                 selected={selected}
                 permissions={permissions}
                 workflowPending={workflowPending}
