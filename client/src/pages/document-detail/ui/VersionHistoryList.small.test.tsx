@@ -34,10 +34,8 @@ function renderList(versions: readonly DocumentVersion[]): void {
   render(
     <VersionHistoryList
       versions={versions}
-      selected={null}
       permissions={NO_PERMISSIONS}
       workflowPending={false}
-      onSelect={noop}
       onOpenViewer={noop}
       onSubmit={noop}
       onApprove={noop}

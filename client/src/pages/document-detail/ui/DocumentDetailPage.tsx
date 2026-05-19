@@ -1,9 +1,8 @@
-import { Alert, Box, Chip, Grid2, Stack, Typography } from '@mui/material';
+import { Alert, Chip, Stack, Typography } from '@mui/material';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { versionFileUrl } from '../../../entities/document';
 import { useMe } from '../../../features/auth';
 import {
   DeleteDocumentButton,
@@ -17,17 +16,13 @@ import {
   UploadDropzone,
   useUploadVersion,
 } from '../../../features/upload-version';
-import { CommentThread } from '../../../features/version-comments';
 import {
   computePermissions,
   useVersionWorkflow,
 } from '../../../features/version-workflow';
-import { prefetchPdf } from '../../../shared/lib/pdf-cache';
 import { sortVersionsDesc } from '../../../shared/lib/sort-versions';
 import { PageHeader } from '../../../shared/ui/PageHeader';
-import { PdfViewer } from '../../../shared/ui/PdfViewer';
 import { SectionCard } from '../../../shared/ui/SectionCard';
-import { reconcileSelectedVersion } from '../lib/select-version';
 
 import { VersionHistoryList } from './VersionHistoryList';
 
@@ -44,7 +39,6 @@ export function DocumentDetailPage(): ReactElement {
   const upload = useUploadVersion(documentId);
   const workflow = useVersionWorkflow(documentId);
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<number | null>(null);
   // 名称変更ダイアログの open state は page が所有する（client-fsd Portal 規約）。
   const [renameOpen, setRenameOpen] = useState(false);
   // 削除確認ダイアログの open state は page が所有する
@@ -86,47 +80,12 @@ export function DocumentDetailPage(): ReactElement {
     workflow.publish,
   ].some((m) => m.isError);
 
-  const versions = document.data?.versions;
-  // versions 由来の降順ソートは毎レンダー再計算しないよう memo 化する
-  // （selected / workflow フラグ変化で再描画されるため）。
+  // 版履歴は最新が上（降順）。ソートは毎レンダー再計算しないよう
+  // memo 化する（workflow フラグ変化で再描画されるため）。
   const sortedVersions = useMemo(
-    () => sortVersionsDesc(versions ?? []),
-    [versions],
+    () => sortVersionsDesc(document.data?.versions ?? []),
+    [document.data?.versions],
   );
-  // 同一ルートで documentId だけが変わる遷移ではコンポーネントが
-  // アンマウントされず、前の文書で選んだ版番号が selected に残る。
-  // versions（文書切替で参照が変わる）に追従して整合させ、別文書に
-  // 存在しない版で PdfViewer/CommentThread を開かないようにする。
-  // setSelected の関数更新で prev を参照するため依存に selected は不要。
-  // 整合済み（prev を維持）のときは同一値を返し React がバイパスする
-  // ため無限ループにはならない。
-  useEffect(() => {
-    setSelected((prev) => reconcileSelectedVersion(prev, versions));
-  }, [versions]);
-
-  // 版切替を即時化するため近傍版のみ事前読み込みする。全版一括だと
-  // 版数が多い文書で同時 DL/パースが過多になりキャッシュ上限も超えるため、
-  // 選択中とその前後 2 版＋最新版に限定（選択変更で追従して温める）。
-  useEffect(() => {
-    if (versions === undefined || versions.length === 0) {
-      return;
-    }
-    const numbers = versions.map((v) => v.versionNumber);
-    const last = numbers[numbers.length - 1];
-    const center = selected ?? last ?? 1;
-    const window = new Set<number>();
-    for (let n = center - 2; n <= center + 2; n += 1) {
-      window.add(n);
-    }
-    if (last !== undefined) {
-      window.add(last);
-    }
-    for (const n of numbers) {
-      if (window.has(n)) {
-        prefetchPdf(versionFileUrl(documentId, n));
-      }
-    }
-  }, [versions, documentId, selected]);
 
   if (document.isPending) {
     return <Typography>読み込み中…</Typography>;
@@ -137,6 +96,8 @@ export function DocumentDetailPage(): ReactElement {
 
   const d = document.data;
 
+  // 版の閲覧・コメントは専用版ビューアへ集約。文書詳細からは履歴行の
+  // 「専用ビューアで開く」導線で遷移する。
   const openViewer = (versionNumber: number): void => {
     void navigate({
       to: '/projects/$projectId/documents/$documentId/versions/$versionNumber',
@@ -162,7 +123,7 @@ export function DocumentDetailPage(): ReactElement {
               />
             </Stack>
           ) : (
-            '版を選択するとプレビューとコメントが右側に表示されます'
+            '版をアップロードし、各行から専用ビューアで閲覧・コメントできます'
           )
         }
         actions={
@@ -195,91 +156,46 @@ export function DocumentDetailPage(): ReactElement {
         </Alert>
       )}
 
-      <Grid2 container spacing={3} alignItems="stretch">
-        {/* 左カラム: アップロード + 版履歴/操作 */}
-        <Grid2 size={{ xs: 12, lg: 4 }}>
-          <Stack spacing={3}>
-            <SectionCard title="新しい版をアップロード" dense>
-              <UploadDropzone
-                compact
-                onUpload={(f) => {
-                  upload.mutate(f);
-                }}
-                pending={upload.isPending}
-                succeeded={upload.isSuccess}
-                failed={upload.isError}
-                onResetStatus={() => {
-                  upload.reset();
-                }}
-              />
-            </SectionCard>
+      <Stack spacing={3}>
+        <SectionCard title="新しい版をアップロード" dense>
+          <UploadDropzone
+            compact
+            onUpload={(f) => {
+              upload.mutate(f);
+            }}
+            pending={upload.isPending}
+            succeeded={upload.isSuccess}
+            failed={upload.isError}
+            onResetStatus={() => {
+              upload.reset();
+            }}
+          />
+        </SectionCard>
 
-            <SectionCard title="版履歴">
-              <VersionHistoryList
-                versions={sortedVersions}
-                selected={selected}
-                permissions={permissions}
-                workflowPending={workflowPending}
-                onSelect={setSelected}
-                onOpenViewer={openViewer}
-                onSubmit={(n) => {
-                  runAction(workflow.submit, n);
-                }}
-                onApprove={(n) => {
-                  runAction(workflow.approve, n);
-                }}
-                onRequestChanges={(n) => {
-                  runAction(workflow.requestChanges, n);
-                }}
-                onReject={(n) => {
-                  runAction(workflow.reject, n);
-                }}
-                onPublish={(n) => {
-                  runAction(workflow.publish, n);
-                }}
-              />
-            </SectionCard>
-          </Stack>
-        </Grid2>
-
-        {/* 右カラム: プレビュー（主役）+ コメント */}
-        <Grid2 size={{ xs: 12, lg: 8 }}>
-          {selected === null ? (
-            <SectionCard fullHeight>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  minHeight: 320,
-                  color: 'text.secondary',
-                }}
-              >
-                <Typography>
-                  左の版履歴から版を選ぶとプレビューを表示します
-                </Typography>
-              </Box>
-            </SectionCard>
-          ) : (
-            <Stack spacing={3}>
-              <SectionCard title={`v${String(selected)} のプレビュー`}>
-                <PdfViewer
-                  src={versionFileUrl(documentId, selected)}
-                  fitToWidth
-                />
-              </SectionCard>
-              <SectionCard title={`v${String(selected)} のコメント`}>
-                <CommentThread
-                  documentId={documentId}
-                  versionNumber={selected}
-                  currentUserId={me.data?.id}
-                />
-              </SectionCard>
-            </Stack>
-          )}
-        </Grid2>
-      </Grid2>
+        <SectionCard title="版履歴">
+          <VersionHistoryList
+            versions={sortedVersions}
+            permissions={permissions}
+            workflowPending={workflowPending}
+            onOpenViewer={openViewer}
+            onSubmit={(n) => {
+              runAction(workflow.submit, n);
+            }}
+            onApprove={(n) => {
+              runAction(workflow.approve, n);
+            }}
+            onRequestChanges={(n) => {
+              runAction(workflow.requestChanges, n);
+            }}
+            onReject={(n) => {
+              runAction(workflow.reject, n);
+            }}
+            onPublish={(n) => {
+              runAction(workflow.publish, n);
+            }}
+          />
+        </SectionCard>
+      </Stack>
 
       <RenameDocumentDialog
         documentId={documentId}
