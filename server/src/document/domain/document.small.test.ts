@@ -390,12 +390,17 @@ describe('Document comments', () => {
     });
     const editedAt = NOW.add(1, 'hour');
 
-    const edited = doc.editComment(1, new CommentId(COMMENT_A), {
-      content: new CommentContent('  誤記を修正  '),
-      requesterId: new CommentAuthorId(AUTHOR_ID),
-      editedAt,
-    });
+    const { comment: edited, changed } = doc.editComment(
+      1,
+      new CommentId(COMMENT_A),
+      {
+        content: new CommentContent('  誤記を修正  '),
+        requesterId: new CommentAuthorId(AUTHOR_ID),
+        editedAt,
+      },
+    );
 
+    expect(changed).toBe(true);
     expect(edited.content.value).toBe('誤記を修正');
     expect(edited.updatedAt.valueOf()).toBe(editedAt.valueOf());
     expect(edited.createdAt.valueOf()).toBe(NOW.valueOf());
@@ -406,7 +411,7 @@ describe('Document comments', () => {
     { input: '誤記あり', reason: '完全一致' },
     { input: '  誤記あり  ', reason: 'trim 後に一致（前後空白のみ差分）' },
   ])(
-    'should keep updatedAt unchanged when normalized content is identical ($reason)',
+    'should report no change and keep updatedAt unchanged when normalized content is identical ($reason)',
     ({ input }) => {
       const doc = docWithOneVersion();
       doc.addComment(1, {
@@ -416,12 +421,17 @@ describe('Document comments', () => {
         createdAt: NOW,
       });
 
-      const edited = doc.editComment(1, new CommentId(COMMENT_A), {
-        content: new CommentContent(input),
-        requesterId: new CommentAuthorId(AUTHOR_ID),
-        editedAt: NOW.add(1, 'hour'),
-      });
+      const { comment: edited, changed } = doc.editComment(
+        1,
+        new CommentId(COMMENT_A),
+        {
+          content: new CommentContent(input),
+          requesterId: new CommentAuthorId(AUTHOR_ID),
+          editedAt: NOW.add(1, 'hour'),
+        },
+      );
 
+      expect(changed).toBe(false);
       expect(edited.content.value).toBe('誤記あり');
       expect(edited.updatedAt.valueOf()).toBe(NOW.valueOf());
       expect(doc.commentsOf(1)[0]?.updatedAt.valueOf()).toBe(NOW.valueOf());

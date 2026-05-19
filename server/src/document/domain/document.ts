@@ -81,20 +81,25 @@ class Comment {
    * 現在値と同一なら no-op とし updatedAt を更新しない。これにより
    * 「updatedAt だけ進むが内容差分が無く DB へ書き戻されず、再取得で
    * 編集済み表示が消える」不整合（updatedAt-only 変更）を防ぐ。
+   *
+   * 変更が生じたか（true=本文を更新した / false=no-op）を返す。集約外は
+   * これを伝播させて「変更が無ければ永続化しない」判断に使う（不要 UPDATE
+   * による revision 進行＝StaleDocumentError 誘発を避ける）。
    */
   edit(params: {
     content: CommentContent;
     requesterId: CommentAuthorId;
     editedAt: Dayjs;
-  }): void {
+  }): boolean {
     if (!this.#authorId.equals(params.requesterId)) {
       throw new CommentForbiddenError();
     }
     if (params.content.value === this.#content.value) {
-      return;
+      return false;
     }
     this.#content = params.content;
     this.#updatedAt = params.editedAt;
+    return true;
   }
 }
 
@@ -269,8 +274,8 @@ class DocumentVersion {
   }
 
   /**
-   * 本文を編集し、編集後の読み取りビューを返す。著者本人のみ編集可。
-   * 未存在は NotFound、著者違いは Comment 側が Forbidden を送出する。
+   * 本文を編集し、編集後の読み取りビューと変更有無を返す。著者本人のみ
+   * 編集可。未存在は NotFound、著者違いは Comment 側が Forbidden を送出する。
    */
   editComment(
     commentId: CommentId,
@@ -279,14 +284,24 @@ class DocumentVersion {
       requesterId: CommentAuthorId;
       editedAt: Dayjs;
     },
-  ): CommentReadonly {
+  ): EditCommentResult {
     const comment = this.#comments.find((c) => c.id.equals(commentId));
     if (comment === undefined) {
       throw new CommentNotFoundError();
     }
-    comment.edit(params);
-    return comment;
+    const changed = comment.edit(params);
+    return { comment, changed };
   }
+}
+
+/**
+ * コメント編集の結果。編集後の読み取りビューと、本文に変更が生じたか
+ * （true=更新あり / false=正規化後同一で no-op）を併せて返す。
+ * 集約外は changed を見て「変更が無ければ永続化しない」判断に使う。
+ */
+export interface EditCommentResult {
+  readonly comment: CommentReadonly;
+  readonly changed: boolean;
 }
 
 /**
@@ -514,8 +529,10 @@ export class Document {
   }
 
   /**
-   * 版コメントの本文を編集し、編集後の読み取りビューを返す。
+   * 版コメントの本文を編集し、編集後の読み取りビューと変更有無を返す。
    * 著者本人のみ編集可。版/コメント未存在は各エラー、著者違いは Forbidden。
+   * 呼び出し側は changed が false（no-op）の場合は永続化しないことで、
+   * 不要 UPDATE による revision 進行（StaleDocumentError 誘発）を避ける。
    */
   editComment(
     versionNumber: number,
@@ -525,7 +542,7 @@ export class Document {
       requesterId: CommentAuthorId;
       editedAt: Dayjs;
     },
-  ): CommentReadonly {
+  ): EditCommentResult {
     return this.#requireVersion(versionNumber).editComment(commentId, params);
   }
 
