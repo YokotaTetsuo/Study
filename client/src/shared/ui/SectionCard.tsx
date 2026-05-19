@@ -31,7 +31,6 @@ export function SectionCard({
       variant="outlined"
       sx={{
         p: dense ? 2 : 3,
-        borderRadius: 2,
         height: fullHeight ? '100%' : undefined,
         display: 'flex',
         flexDirection: 'column',
