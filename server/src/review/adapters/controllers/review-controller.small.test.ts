@@ -32,6 +32,22 @@ const RESULT: DocumentResult = {
   ],
 };
 
+// latestCommentAt の有 / 無 両方をシリアライズ検証するための結果。
+// 既存テストの単一版アサーションを壊さないよう本テスト専用に分ける。
+const RESULT_WITH_NO_COMMENT_VERSION: DocumentResult = {
+  ...RESULT,
+  versions: [
+    ...RESULT.versions,
+    {
+      versionNumber: 2,
+      status: 'draft',
+      uploadedBy: USER_ID,
+      createdAt: dayjs('2026-05-20T00:00:00.000Z'),
+      latestCommentAt: null,
+    },
+  ],
+};
+
 const loggedIn: SessionStore = {
   create: vi.fn(),
   destroy: vi.fn(),
@@ -103,6 +119,27 @@ describe('review controller', () => {
     expect(body).toMatchObject({
       id: DOC_ID,
       versions: [{ status: 'under_review' }],
+    });
+  });
+
+  it('should serialize latestCommentAt as ISO string or null per version', async () => {
+    const app = createReviewApp(
+      deps(loggedIn, {
+        submitVersion: {
+          execute: vi.fn().mockResolvedValue(RESULT_WITH_NO_COMMENT_VERSION),
+        },
+      }),
+    );
+
+    const res = await app.request(post(SUBMIT, 'sid=a'));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({
+      versions: [
+        { versionNumber: 1, latestCommentAt: '2026-05-19T12:34:00.000Z' },
+        { versionNumber: 2, latestCommentAt: null },
+      ],
     });
   });
 
