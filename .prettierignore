@@ -7,3 +7,6 @@ README.md
 # 実装規約(.claude)・設計ドキュメント(docs/PLAN.md, docs/TASKS.md)は
 # 本リポの正本として運用・編集するため整形対象に含める。
 docs/reference
+
+# Claude Code エージェントの作業用 git worktree（lint/整形対象外）
+.claude/worktrees
