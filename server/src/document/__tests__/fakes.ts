@@ -160,7 +160,12 @@ export class FakeAuthorDirectory implements AuthorDirectory {
  * 表示名解決の例外を補助情報として握り潰す挙動の検証に使う。
  */
 export class FailingAuthorDirectory implements AuthorDirectory {
-  findDisplayNames(): Promise<ReadonlyMap<string, string>> {
+  findDisplayNames(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string>> {
+    // 失敗を再現するため引数は使わないが、AuthorDirectory の
+    // シグネチャと一致させる（将来のインターフェース変更時のズレ検知）。
+    void userIds;
     return Promise.reject(new Error('ディレクトリ解決に失敗'));
   }
 }
