@@ -111,4 +111,23 @@ describe('UploadDropzone', () => {
     expect(screen.getByRole('button', { name: '再試行' })).toBeTruthy();
     expect(screen.getByText(/アップロードに失敗しました/)).toBeTruthy();
   });
+
+  it('should keep upload working in compact mode', () => {
+    const { onUpload } = renderDropzone({ compact: true });
+
+    const file = pdf();
+    fireEvent.change(fileInput(), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'アップロード' }));
+
+    expect(onUpload).toHaveBeenCalledWith(file);
+  });
+
+  it('should render the prompt and size limit on one line in compact mode', () => {
+    renderDropzone({ compact: true });
+
+    const prompt = screen.getByText(
+      /PDF をドラッグ&ドロップ、またはクリックして選択（最大/,
+    );
+    expect(prompt.textContent).toMatch(/最大/);
+  });
 });

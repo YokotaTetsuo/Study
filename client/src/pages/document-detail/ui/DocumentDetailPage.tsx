@@ -192,8 +192,9 @@ export function DocumentDetailPage(): ReactElement {
         {/* 左カラム: アップロード + 版履歴/操作 */}
         <Grid2 size={{ xs: 12, lg: 4 }}>
           <Stack spacing={3}>
-            <SectionCard title="新しい版をアップロード">
+            <SectionCard title="新しい版をアップロード" dense>
               <UploadDropzone
+                compact
                 onUpload={(f) => {
                   upload.mutate(f);
                 }}

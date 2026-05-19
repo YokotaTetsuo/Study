@@ -26,6 +26,11 @@ interface Props {
    * 新しいファイル選択・選び直し時に呼び、状態の残留を防ぐ。
    */
   readonly onResetStatus: () => void;
+  /**
+   * 省スペース表示。ドロップゾーンの高さ・余白を詰め、説明を 1 行に
+   * 簡素化する。プレビューを主役にする文書詳細の左カラム向け（既定 false）。
+   */
+  readonly compact?: boolean;
 }
 
 function formatSize(bytes: number): string {
@@ -45,6 +50,7 @@ export function UploadDropzone({
   succeeded,
   failed,
   onResetStatus,
+  compact = false,
 }: Props): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -100,7 +106,7 @@ export function UploadDropzone({
   const canUpload = file !== null && !pending;
 
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: compact ? 0 : 3 }}>
       <Paper
         variant="outlined"
         role="button"
@@ -118,7 +124,7 @@ export function UploadDropzone({
         }}
         onDrop={handleDrop}
         sx={{
-          p: 4,
+          p: compact ? 1.5 : 4,
           textAlign: 'center',
           cursor: pending ? 'default' : 'pointer',
           borderStyle: 'dashed',
@@ -137,23 +143,46 @@ export function UploadDropzone({
             e.target.value = '';
           }}
         />
-        <Typography sx={{ mt: 1 }}>
-          PDF をドラッグ&ドロップ、またはクリックして選択
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {ACCEPTED_MIME} / 最大 {MAX_FILE_SIZE_LABEL}
-        </Typography>
+        {compact ? (
+          <Typography variant="body2">
+            PDF をドラッグ&ドロップ、またはクリックして選択（最大{' '}
+            {MAX_FILE_SIZE_LABEL}）
+          </Typography>
+        ) : (
+          <>
+            <Typography sx={{ mt: 1 }}>
+              PDF をドラッグ&ドロップ、またはクリックして選択
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {ACCEPTED_MIME} / 最大 {MAX_FILE_SIZE_LABEL}
+            </Typography>
+          </>
+        )}
       </Paper>
 
       {file !== null && (
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-          <Typography sx={{ flexGrow: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ mt: compact ? 1 : 2 }}
+        >
+          <Typography
+            variant={compact ? 'body2' : 'body1'}
+            noWrap
+            sx={{ flexGrow: 1, minWidth: 0 }}
+          >
             選択中: {file.name}（{formatSize(file.size)}）
           </Typography>
-          <Button disabled={pending} onClick={clearSelection}>
+          <Button
+            size={compact ? 'small' : 'medium'}
+            disabled={pending}
+            onClick={clearSelection}
+          >
             選び直す
           </Button>
           <Button
+            size={compact ? 'small' : 'medium'}
             variant="contained"
             disabled={!canUpload}
             onClick={() => {
@@ -166,7 +195,7 @@ export function UploadDropzone({
       )}
 
       {pending && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: compact ? 1 : 2 }}>
           <LinearProgress />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             アップロード中…
@@ -175,19 +204,19 @@ export function UploadDropzone({
       )}
 
       {validationError !== null && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
+        <Alert severity="warning" sx={{ mt: compact ? 1 : 2 }}>
           {validationError}
         </Alert>
       )}
 
       {succeeded && (
-        <Alert severity="success" sx={{ mt: 2 }}>
+        <Alert severity="success" sx={{ mt: compact ? 1 : 2 }}>
           アップロードが完了しました。
         </Alert>
       )}
 
       {failed && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert severity="error" sx={{ mt: compact ? 1 : 2 }}>
           アップロードに失敗しました。対応形式は {ACCEPTED_MIME} のみ・最大{' '}
           {MAX_FILE_SIZE_LABEL}{' '}
           です。権限・通信状況もご確認のうえ「再試行」してください。
