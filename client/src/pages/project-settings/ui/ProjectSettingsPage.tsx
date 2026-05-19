@@ -27,6 +27,8 @@ import {
   useSetMemberRole,
   useUpdateApprovalPolicy,
 } from '../../../features/project';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { SectionCard } from '../../../shared/ui/SectionCard';
 
 const ROLES = projectRoleSchema.options;
 
@@ -69,176 +71,181 @@ export function ProjectSettingsPage(): ReactElement {
 
   return (
     <>
-      <Typography variant="h5" gutterBottom>
-        {p.name} の設定
-      </Typography>
+      <PageHeader
+        title={`${p.name} の設定`}
+        subtitle="メンバーと承認ポリシーを管理します"
+      />
 
       {!isOwner && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="info" sx={{ mb: 3 }}>
           メンバーと承認ポリシーの変更はプロジェクトのオーナーのみ可能です。
         </Alert>
       )}
 
-      <Typography variant="h6" sx={{ mt: 3 }}>
-        メンバー
-      </Typography>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>表示名</TableCell>
-            <TableCell>メール</TableCell>
-            <TableCell>ロール</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {p.members.map((m) => (
-            <TableRow key={m.userId}>
-              <TableCell>{m.displayName}</TableCell>
-              <TableCell>{m.email}</TableCell>
-              <TableCell>
-                <TextField
-                  select
-                  size="small"
-                  disabled={!isOwner}
-                  value={m.role}
-                  onChange={(e) => {
-                    setRole.mutate({
-                      userId: m.userId,
-                      body: { role: projectRoleSchema.parse(e.target.value) },
-                    });
-                  }}
-                >
-                  {ROLES.map((r) => (
-                    <MenuItem key={r} value={r}>
-                      {r}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Stack spacing={3}>
+        <SectionCard title="メンバー">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>表示名</TableCell>
+                <TableCell>メール</TableCell>
+                <TableCell>ロール</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {p.members.map((m) => (
+                <TableRow key={m.userId}>
+                  <TableCell>{m.displayName}</TableCell>
+                  <TableCell>{m.email}</TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      disabled={!isOwner}
+                      value={m.role}
+                      onChange={(e) => {
+                        setRole.mutate({
+                          userId: m.userId,
+                          body: {
+                            role: projectRoleSchema.parse(e.target.value),
+                          },
+                        });
+                      }}
+                    >
+                      {ROLES.map((r) => (
+                        <MenuItem key={r} value={r}>
+                          {r}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-      <Box
-        component="form"
-        sx={{ mt: 2 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          addMember.mutate(
-            { email, role: newRole },
-            {
-              onSuccess: () => {
-                setEmail('');
-              },
-            },
-          );
-        }}
-      >
-        <Stack direction="row" spacing={2}>
-          <TextField
-            id="member-email"
-            label="追加するメールアドレス"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
+          <Box
+            component="form"
+            sx={{ mt: 3 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              addMember.mutate(
+                { email, role: newRole },
+                {
+                  onSuccess: () => {
+                    setEmail('');
+                  },
+                },
+              );
             }}
-            required
-            disabled={!isOwner}
-          />
-          <TextField
-            select
-            label="ロール"
-            value={newRole}
-            onChange={(e) => {
-              setNewRole(projectRoleSchema.parse(e.target.value));
-            }}
-            sx={{ minWidth: 140 }}
-            disabled={!isOwner}
           >
-            {ROLES.map((r) => (
-              <MenuItem key={r} value={r}>
-                {r}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={!isOwner || addMember.isPending}
-          >
-            メンバー追加
-          </Button>
-        </Stack>
-        {addMember.isError && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            メンバー追加に失敗しました
-          </Alert>
-        )}
-      </Box>
-
-      <Typography variant="h6" sx={{ mt: 4 }}>
-        承認ポリシー
-      </Typography>
-      <Box
-        component="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          updatePolicy.mutate({
-            requiredApprovals: required,
-            approverRoles,
-          });
-        }}
-      >
-        <Stack spacing={1} sx={{ maxWidth: 360 }}>
-          <TextField
-            id="required-approvals"
-            label="必要承認数"
-            type="number"
-            value={required}
-            onChange={(e) => {
-              setRequired(Number(e.target.value));
-            }}
-            slotProps={{ htmlInput: { min: 1 } }}
-            disabled={!isOwner}
-          />
-          <Box>
-            {ROLES.map((r) => (
-              <FormControlLabel
-                key={r}
-                control={
-                  <Checkbox
-                    disabled={!isOwner}
-                    checked={approverRoles.includes(r)}
-                    onChange={(e) => {
-                      setApproverRoles((prev) =>
-                        e.target.checked
-                          ? [...prev, r]
-                          : prev.filter((x) => x !== r),
-                      );
-                    }}
-                  />
-                }
-                label={r}
+            <Stack direction="row" spacing={2}>
+              <TextField
+                id="member-email"
+                label="追加するメールアドレス"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                }}
+                required
+                disabled={!isOwner}
               />
-            ))}
+              <TextField
+                select
+                label="ロール"
+                value={newRole}
+                onChange={(e) => {
+                  setNewRole(projectRoleSchema.parse(e.target.value));
+                }}
+                sx={{ minWidth: 140 }}
+                disabled={!isOwner}
+              >
+                {ROLES.map((r) => (
+                  <MenuItem key={r} value={r}>
+                    {r}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={!isOwner || addMember.isPending}
+              >
+                メンバー追加
+              </Button>
+            </Stack>
+            {addMember.isError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                メンバー追加に失敗しました
+              </Alert>
+            )}
           </Box>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={
-              !isOwner || updatePolicy.isPending || approverRoles.length === 0
-            }
+        </SectionCard>
+
+        <SectionCard title="承認ポリシー">
+          <Box
+            component="form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              updatePolicy.mutate({
+                requiredApprovals: required,
+                approverRoles,
+              });
+            }}
           >
-            ポリシー更新
-          </Button>
-          <Typography variant="body2" color="text.secondary">
-            現在: 必要承認 {p.approvalPolicy.requiredApprovals} / 承認ロール{' '}
-            {p.approvalPolicy.approverRoles.join(', ')}
-          </Typography>
-        </Stack>
-      </Box>
+            <Stack spacing={1} sx={{ maxWidth: 360 }}>
+              <TextField
+                id="required-approvals"
+                label="必要承認数"
+                type="number"
+                value={required}
+                onChange={(e) => {
+                  setRequired(Number(e.target.value));
+                }}
+                slotProps={{ htmlInput: { min: 1 } }}
+                disabled={!isOwner}
+              />
+              <Box>
+                {ROLES.map((r) => (
+                  <FormControlLabel
+                    key={r}
+                    control={
+                      <Checkbox
+                        disabled={!isOwner}
+                        checked={approverRoles.includes(r)}
+                        onChange={(e) => {
+                          setApproverRoles((prev) =>
+                            e.target.checked
+                              ? [...prev, r]
+                              : prev.filter((x) => x !== r),
+                          );
+                        }}
+                      />
+                    }
+                    label={r}
+                  />
+                ))}
+              </Box>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={
+                  !isOwner ||
+                  updatePolicy.isPending ||
+                  approverRoles.length === 0
+                }
+              >
+                ポリシー更新
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                現在: 必要承認 {p.approvalPolicy.requiredApprovals} / 承認ロール{' '}
+                {p.approvalPolicy.approverRoles.join(', ')}
+              </Typography>
+            </Stack>
+          </Box>
+        </SectionCard>
+      </Stack>
     </>
   );
 }

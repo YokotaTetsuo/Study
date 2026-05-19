@@ -5,7 +5,6 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
-  Stack,
   Typography,
 } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
@@ -17,6 +16,8 @@ import {
   CreateProjectDialog,
   useProjects,
 } from '../../../features/project';
+import { PageHeader } from '../../../shared/ui/PageHeader';
+import { SectionCard } from '../../../shared/ui/SectionCard';
 
 export function ProjectsPage(): ReactElement {
   const projects = useProjects();
@@ -26,19 +27,17 @@ export function ProjectsPage(): ReactElement {
 
   return (
     <>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h5">プロジェクト</Typography>
-        <CreateProjectButton
-          onClick={() => {
-            setCreateOpen(true);
-          }}
-        />
-      </Stack>
+      <PageHeader
+        title="プロジェクト"
+        subtitle="参加しているプロジェクトの一覧"
+        actions={
+          <CreateProjectButton
+            onClick={() => {
+              setCreateOpen(true);
+            }}
+          />
+        }
+      />
 
       {projects.isPending && <Typography>読み込み中…</Typography>}
       {projects.isError && (
@@ -46,46 +45,51 @@ export function ProjectsPage(): ReactElement {
       )}
       {projects.data !== undefined &&
         (projects.data.length === 0 ? (
-          <Typography color="text.secondary">
-            プロジェクトがありません。「＋ 追加」から作成してください。
-          </Typography>
+          <SectionCard>
+            <Typography color="text.secondary">
+              プロジェクトがありません。「＋ 追加」から作成してください。
+            </Typography>
+          </SectionCard>
         ) : (
-          <List>
-            {projects.data.map((p) => (
-              <ListItem
-                key={p.id}
-                disablePadding
-                secondaryAction={
-                  <Button
-                    size="small"
+          <SectionCard dense>
+            <List disablePadding>
+              {projects.data.map((p) => (
+                <ListItem
+                  key={p.id}
+                  disablePadding
+                  secondaryAction={
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        void navigate({
+                          to: '/projects/$projectId/settings',
+                          params: { projectId: p.id },
+                        });
+                      }}
+                    >
+                      設定
+                    </Button>
+                  }
+                >
+                  <ListItemButton
+                    sx={{ borderRadius: 1, py: 1.5 }}
                     onClick={() => {
                       void navigate({
-                        to: '/projects/$projectId/settings',
+                        to: '/projects/$projectId/documents',
                         params: { projectId: p.id },
                       });
                     }}
                   >
-                    設定
-                  </Button>
-                }
-              >
-                <ListItemButton
-                  onClick={() => {
-                    void navigate({
-                      to: '/projects/$projectId/documents',
-                      params: { projectId: p.id },
-                    });
-                  }}
-                >
-                  <ListItemText
-                    primary={p.name}
-                    slotProps={{ primary: { variant: 'h6' } }}
-                    secondary={`メンバー ${String(p.members.length)} 名`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
+                    <ListItemText
+                      primary={p.name}
+                      slotProps={{ primary: { variant: 'h6' } }}
+                      secondary={`メンバー ${String(p.members.length)} 名`}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </SectionCard>
         ))}
 
       <CreateProjectDialog

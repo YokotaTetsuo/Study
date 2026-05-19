@@ -5,7 +5,17 @@ import type { ReactElement } from 'react';
 
 import { router } from './router';
 
-const theme = createTheme();
+// PC 閲覧を主対象にした一貫テーマ。角丸・余白・見出しの太さを揃え、
+// 全ページのレイアウト/タイポグラフィを統一する。
+const theme = createTheme({
+  shape: { borderRadius: 8 },
+  typography: {
+    h4: { fontWeight: 600 },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
+    button: { textTransform: 'none' },
+  },
+});
 const queryClient = new QueryClient();
 
 export function App(): ReactElement {
