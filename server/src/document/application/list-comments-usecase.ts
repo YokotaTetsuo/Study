@@ -51,8 +51,17 @@ export class ListCommentsUseCase {
     const comments = document.commentsOf(query.versionNumber);
     // 同一著者が複数コメントを持つと ID が重複するため一意化してから引く。
     const uniqueAuthorIds = [...new Set(comments.map((c) => c.authorId.value))];
-    const displayNames =
-      await this.#authorDirectory.findDisplayNames(uniqueAuthorIds);
+    // 表示名は補助情報。ディレクトリ解決の失敗だけで一覧取得を HTTP 失敗
+    // させないため、例外は握り潰して空 Map（＝全件 null フォールバック）
+    // とする（AddCommentUseCase と同一方針）。
+    let displayNames: ReadonlyMap<string, string> = new Map();
+    try {
+      displayNames =
+        await this.#authorDirectory.findDisplayNames(uniqueAuthorIds);
+    } catch (error) {
+      // eslint-disable-next-line no-console -- 補助情報の解決失敗を可視化
+      console.warn('著者表示名の解決に失敗しました（null で続行）:', error);
+    }
     return comments.map((c) =>
       toCommentResult(c, displayNames.get(c.authorId.value) ?? null),
     );
