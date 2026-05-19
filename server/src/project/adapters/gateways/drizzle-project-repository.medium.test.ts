@@ -138,8 +138,8 @@ describe('DrizzleProjectRepository', () => {
     `;
     await client.sql`
       insert into document_comments
-        (id, document_id, version_number, author_id, content, created_at)
-      values (${COMMENT_ID}, ${DOC_ID}, 1, ${OWNER_ID}, 'lgtm', ${FIXED_NOW.toISOString()})
+        (id, document_id, version_number, author_id, content, created_at, updated_at)
+      values (${COMMENT_ID}, ${DOC_ID}, 1, ${OWNER_ID}, 'lgtm', ${FIXED_NOW.toISOString()}, ${FIXED_NOW.toISOString()})
     `;
     await client.sql`
       insert into review_requests
