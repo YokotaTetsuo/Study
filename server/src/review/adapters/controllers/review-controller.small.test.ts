@@ -27,6 +27,7 @@ const RESULT: DocumentResult = {
       status: 'under_review',
       uploadedBy: USER_ID,
       createdAt: dayjs('2026-05-18T00:00:00.000Z'),
+      latestCommentAt: dayjs('2026-05-19T12:34:00.000Z'),
     },
   ],
 };

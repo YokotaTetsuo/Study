@@ -7,6 +7,8 @@ export interface VersionResult {
   readonly status: string;
   readonly uploadedBy: string;
   readonly createdAt: Dayjs;
+  // この版に付いた最新コメントの作成時刻。コメントが無い版は null。
+  readonly latestCommentAt: Dayjs | null;
 }
 
 export interface DocumentResult {
@@ -30,6 +32,7 @@ export function toDocumentResult(document: Document): DocumentResult {
       status: v.status.value,
       uploadedBy: v.uploadedBy.value,
       createdAt: v.createdAt,
+      latestCommentAt: v.latestCommentAt,
     })),
   };
 }

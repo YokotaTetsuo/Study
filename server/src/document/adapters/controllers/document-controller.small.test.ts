@@ -29,6 +29,14 @@ const RESULT: DocumentResult = {
       status: 'draft',
       uploadedBy: USER_ID,
       createdAt: dayjs('2026-05-18T00:00:00.000Z'),
+      latestCommentAt: dayjs('2026-05-19T12:34:00.000Z'),
+    },
+    {
+      versionNumber: 2,
+      status: 'draft',
+      uploadedBy: USER_ID,
+      createdAt: dayjs('2026-05-20T00:00:00.000Z'),
+      latestCommentAt: null,
     },
   ],
 };
@@ -141,6 +149,27 @@ describe('document controller', () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body).toMatchObject({ id: DOC_ID, projectId: PROJECT_ID });
+  });
+
+  it('should serialize latestCommentAt as ISO string or null per version', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      postJson(
+        '/documents',
+        { projectId: PROJECT_ID, name: '設計書' },
+        'sid=a',
+      ),
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toMatchObject({
+      versions: [
+        { versionNumber: 1, latestCommentAt: '2026-05-19T12:34:00.000Z' },
+        { versionNumber: 2, latestCommentAt: null },
+      ],
+    });
   });
 
   it('should list documents of a project (200)', async () => {

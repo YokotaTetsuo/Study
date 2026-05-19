@@ -237,6 +237,17 @@ class DocumentVersion {
     return [...this.#comments];
   }
 
+  /**
+   * この版に付いた最新コメントの作成時刻。コメントが無ければ null。
+   * #comments は createdAt 昇順を不変条件に保つため末尾が最新となる。
+   * 「最新」は作成時刻基準（編集による updatedAt は含めない）= 版に
+   * 最後にコメントが付いた時刻、という版履歴一覧の意味づけに合わせる。
+   */
+  get latestCommentAt(): Dayjs | null {
+    const last = this.#comments[this.#comments.length - 1];
+    return last?.createdAt ?? null;
+  }
+
   addComment(params: {
     id: CommentId;
     authorId: CommentAuthorId;
@@ -315,6 +326,7 @@ export interface VersionReadonly {
   readonly uploadedBy: UploaderId;
   readonly createdAt: Dayjs;
   readonly comments: readonly CommentReadonly[];
+  readonly latestCommentAt: Dayjs | null;
 }
 
 /**
