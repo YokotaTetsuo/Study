@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -15,7 +16,11 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { versionFileUrl } from '../../../entities/document';
 import { useMe } from '../../../features/auth';
-import { useDocument } from '../../../features/document';
+import {
+  RenameDocumentButton,
+  RenameDocumentDialog,
+  useDocument,
+} from '../../../features/document';
 import { useProject } from '../../../features/project';
 import {
   UploadDropzone,
@@ -77,6 +82,8 @@ export function DocumentDetailPage(): ReactElement {
   const workflow = useVersionWorkflow(documentId);
   const navigate = useNavigate();
   const [selected, setSelected] = useState<number | null>(null);
+  // 名称変更ダイアログの open state は page が所有する（client-fsd Portal 規約）。
+  const [renameOpen, setRenameOpen] = useState(false);
 
   // 現在ユーザーのプロジェクト内ロールと承認ポリシーから、提示してよい
   // 操作を導く（403 になるボタンを出さない）。未取得時は全操作不可。
@@ -156,9 +163,19 @@ export function DocumentDetailPage(): ReactElement {
 
   return (
     <>
-      <Typography variant="h5" gutterBottom>
-        {d.name}
-      </Typography>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
+        <Typography variant="h5">{d.name}</Typography>
+        <RenameDocumentButton
+          onClick={() => {
+            setRenameOpen(true);
+          }}
+        />
+      </Stack>
 
       {d.officialVersionNumber !== null && (
         <Alert severity="success" sx={{ mb: 2 }}>
@@ -289,6 +306,15 @@ export function DocumentDetailPage(): ReactElement {
           />
         </Box>
       )}
+
+      <RenameDocumentDialog
+        documentId={documentId}
+        currentName={d.name}
+        open={renameOpen}
+        onClose={() => {
+          setRenameOpen(false);
+        }}
+      />
     </>
   );
 }

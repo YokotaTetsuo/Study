@@ -15,6 +15,7 @@ import type { GetDocumentUseCase } from '../../document/application/get-document
 import type { GetVersionFileUseCase } from '../../document/application/get-version-file-usecase';
 import type { ListCommentsUseCase } from '../../document/application/list-comments-usecase';
 import type { ListDocumentsUseCase } from '../../document/application/list-documents-usecase';
+import type { RenameDocumentUseCase } from '../../document/application/rename-document-usecase';
 import type { UploadVersionUseCase } from '../../document/application/upload-version-usecase';
 import { createHealthApp } from '../../health/adapters/controllers/health-controller';
 import type { GetHealthUseCase } from '../../health/application/get-health-usecase';
@@ -58,6 +59,7 @@ interface AppDeps {
     readonly createDocument: CreateDocumentUseCase;
     readonly listDocuments: ListDocumentsUseCase;
     readonly getDocument: GetDocumentUseCase;
+    readonly renameDocument: RenameDocumentUseCase;
     readonly uploadVersion: UploadVersionUseCase;
     readonly getVersionFile: GetVersionFileUseCase;
     readonly addComment: AddCommentUseCase;

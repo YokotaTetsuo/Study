@@ -143,6 +143,20 @@ describe('DrizzleDocumentRepository', () => {
     // ステールな b の保存は拒否される（巻き戻し防止）。
     await expect(repo.save(b)).rejects.toThrow(StaleDocumentError);
   });
+
+  it('should persist a renamed name on the next save', async () => {
+    await repo.save(aDocument());
+    const loaded = await repo.findById(new DocumentId(DOC_ID));
+    if (loaded === null) {
+      throw new Error('seeded document not found');
+    }
+
+    loaded.rename(new DocumentName('要件定義書'));
+    await repo.save(loaded);
+
+    const found = await repo.findById(new DocumentId(DOC_ID));
+    expect(found?.name.value).toBe('要件定義書');
+  });
 });
 
 const COMMENT_A = '01HQ8ZK9PRSTVWXYZ23456789C';

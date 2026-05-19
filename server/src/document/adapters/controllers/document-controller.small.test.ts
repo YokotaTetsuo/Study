@@ -9,6 +9,7 @@ import { NotAuthorizedError } from '../../application/not-authorized-error';
 import { UnsupportedContentTypeError } from '../../application/unsupported-content-type-error';
 import { CommentForbiddenError } from '../../domain/comment-forbidden-error';
 import { DocumentNotFoundError } from '../../domain/document-not-found-error';
+import { StaleDocumentError } from '../../domain/stale-document-error';
 
 import { createDocumentApp } from './document-controller';
 
@@ -59,6 +60,7 @@ function deps(
     createDocument: { execute: vi.fn().mockResolvedValue(RESULT) },
     listDocuments: { execute: vi.fn().mockResolvedValue([RESULT]) },
     getDocument: { execute: vi.fn().mockResolvedValue(RESULT) },
+    renameDocument: { execute: vi.fn().mockResolvedValue(RESULT) },
     uploadVersion: { execute: vi.fn().mockResolvedValue(RESULT) },
     getVersionFile: {
       execute: vi.fn().mockResolvedValue({ data: new Uint8Array([1, 2, 3]) }),
@@ -78,6 +80,18 @@ function postJson(path: string, body: unknown, cookie?: string): Request {
   }
   return new Request(`http://local${path}`, {
     method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+function putJson(path: string, body: unknown, cookie?: string): Request {
+  const headers = new Headers([['content-type', 'application/json']]);
+  if (cookie !== undefined) {
+    headers.set('cookie', cookie);
+  }
+  return new Request(`http://local${path}`, {
+    method: 'PUT',
     headers,
     body: JSON.stringify(body),
   });
@@ -366,5 +380,85 @@ describe('document controller', () => {
     );
 
     expect(res.status).toBe(400);
+  });
+
+  it('should rename a document (200)', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '要件定義書' }, 'sid=a'),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ id: DOC_ID });
+  });
+
+  it('should return 401 on rename when unauthenticated', async () => {
+    const app = createDocumentApp(deps(anon));
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '要件定義書' }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should return 400 on rename with an invalid body', async () => {
+    const app = createDocumentApp(deps(loggedIn));
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '' }, 'sid=a'),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it('should map NotAuthorizedError to 403 on rename', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        renameDocument: {
+          execute: vi.fn().mockRejectedValue(new NotAuthorizedError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '要件定義書' }, 'sid=a'),
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it('should map DocumentNotFoundError to 404 on rename', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        renameDocument: {
+          execute: vi.fn().mockRejectedValue(new DocumentNotFoundError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '要件定義書' }, 'sid=a'),
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  it('should map StaleDocumentError to 409 on rename', async () => {
+    const app = createDocumentApp(
+      deps(loggedIn, {
+        renameDocument: {
+          execute: vi.fn().mockRejectedValue(new StaleDocumentError()),
+        },
+      }),
+    );
+
+    const res = await app.request(
+      putJson(`/documents/${DOC_ID}`, { name: '要件定義書' }, 'sid=a'),
+    );
+
+    expect(res.status).toBe(409);
   });
 });
