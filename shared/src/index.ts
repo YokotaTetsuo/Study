@@ -14,6 +14,7 @@ export type { ProblemDetail } from './problem';
 export {
   projectRoleSchema,
   createProjectRequestSchema,
+  renameProjectRequestSchema,
   addMemberRequestSchema,
   setMemberRoleRequestSchema,
   approvalPolicySchema,
@@ -25,6 +26,7 @@ export {
 export type {
   ProjectRole,
   CreateProjectRequest,
+  RenameProjectRequest,
   AddMemberRequest,
   SetMemberRoleRequest,
   ApprovalPolicy,

@@ -8,4 +8,6 @@ export {
   addMember,
   setMemberRole,
   updateApprovalPolicy,
+  renameProject,
+  deleteProject,
 } from './api/project-api';

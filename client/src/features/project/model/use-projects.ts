@@ -2,6 +2,7 @@ import type {
   AddMemberRequest,
   CreateProjectRequest,
   ProjectResponse,
+  RenameProjectRequest,
   SetMemberRoleRequest,
   UpdateApprovalPolicyRequest,
 } from '@pdf-review/shared';
@@ -12,8 +13,10 @@ import {
   PROJECTS_QUERY_KEY,
   addMember,
   createProject,
+  deleteProject,
   projectQueryOptions,
   projectsQueryOptions,
+  renameProject,
   setMemberRole,
   updateApprovalPolicy,
 } from '../../../entities/project';
@@ -76,6 +79,29 @@ export function useUpdateApprovalPolicy(
   return useMutation({
     mutationFn: (input: UpdateApprovalPolicyRequest) =>
       updateApprovalPolicy(projectId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+    },
+  });
+}
+
+export function useRenameProject(
+  projectId: string,
+): UseMutationResult<ProjectResponse, Error, RenameProjectRequest> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RenameProjectRequest) =>
+      renameProject(projectId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteProject(): UseMutationResult<void, Error, string> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) => deleteProject(projectId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
     },

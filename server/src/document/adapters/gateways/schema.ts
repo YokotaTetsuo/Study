@@ -8,17 +8,32 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
-export const documents = pgTable('documents', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull(),
-  name: text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
-  // 正式版ポインタ。null=未公開。official 状態の版番号のみが入る。
-  officialVersionNumber: integer('official_version_number'),
-  // 楽観ロック用リビジョン。初回保存は 0、更新のたびに +1 し、
-  // ステール書き込み（読み込み時 revision との不一致）を検出する。
-  revision: integer('revision').notNull().default(0),
-});
+import { projects } from '../../../project/adapters/gateways/schema';
+
+export const documents = pgTable(
+  'documents',
+  {
+    id: text('id').primaryKey(),
+    // プロジェクト削除時に文書ごと消す（版/コメントは documents 経由で
+    // さらに cascade）。これが無いと孤児文書が残る。
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    // 正式版ポインタ。null=未公開。official 状態の版番号のみが入る。
+    officialVersionNumber: integer('official_version_number'),
+    // 楽観ロック用リビジョン。初回保存は 0、更新のたびに +1 し、
+    // ステール書き込み（読み込み時 revision との不一致）を検出する。
+    revision: integer('revision').notNull().default(0),
+  },
+  // listByProject は where project_id + order by created_at で読む。
+  // project 削除時の FK cascade も project_id 参照のため、大規模データ
+  // での seq scan / ロック時間増大を避ける複合索引。
+  (t) => [
+    index('documents_project_id_created_at_idx').on(t.projectId, t.createdAt),
+  ],
+);
 
 export const documentVersions = pgTable(
   'document_versions',

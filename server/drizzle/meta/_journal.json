@@ -64,6 +64,13 @@
       "when": 1779182157496,
       "tag": "0008_sweet_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779186425966,
+      "tag": "0009_amusing_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

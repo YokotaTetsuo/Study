@@ -2,7 +2,11 @@ import dayjs from 'dayjs';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { DbClient } from '../../../infrastructure/db/client';
-import { makeTestDbClient, truncateDocuments } from '../../__tests__/medium-db';
+import {
+  makeTestDbClient,
+  seedProject,
+  truncateDocuments,
+} from '../../__tests__/medium-db';
 import { CommentAuthorId } from '../../domain/comment-author-id';
 import { CommentContent } from '../../domain/comment-content';
 import { CommentId } from '../../domain/comment-id';
@@ -35,6 +39,7 @@ function aDocument(id = DOC_ID, createdAt = NOW): Document {
 
 beforeEach(async () => {
   await truncateDocuments(client);
+  await seedProject(client, PROJECT_ID);
 });
 
 afterAll(async () => {

@@ -1,7 +1,10 @@
 import dayjs from 'dayjs';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { truncateDocuments } from '../../../document/__tests__/medium-db';
+import {
+  seedProject,
+  truncateDocuments,
+} from '../../../document/__tests__/medium-db';
 import { DrizzleDocumentRepository } from '../../../document/adapters/gateways/drizzle-document-repository';
 import { Document } from '../../../document/domain/document';
 import { DocumentId } from '../../../document/domain/document-id';
@@ -48,6 +51,8 @@ function aReviewRequest(): ReviewRequest {
 beforeEach(async () => {
   await truncateReview(client);
   await truncateDocuments(client);
+  // FK (documents.project_id → projects.id) を満たすため親プロジェクトを先に作る。
+  await seedProject(client, PROJECT_ID);
   // FK (review_requests.document_id → documents.id) を満たすため親文書を先に作る。
   await docRepo.save(
     Document.create({

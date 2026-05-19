@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   makeTestDbClient,
+  seedProject,
   truncateDocuments,
 } from '../../document/__tests__/medium-db';
 import { DrizzleDocumentRepository } from '../../document/adapters/gateways/drizzle-document-repository';
@@ -62,6 +63,7 @@ function aReviewRequest(): ReviewRequest {
 beforeEach(async () => {
   await truncateReview(client);
   await truncateDocuments(client);
+  await seedProject(client, PROJ_ID);
 });
 
 afterAll(async () => {

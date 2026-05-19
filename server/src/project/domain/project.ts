@@ -66,7 +66,7 @@ interface ReconstructParams {
  */
 export class Project {
   readonly #id: ProjectId;
-  readonly #name: ProjectName;
+  #name: ProjectName;
   readonly #createdAt: Dayjs;
   readonly #members: Membership[];
   #approvalPolicy: ApprovalPolicy;
@@ -154,6 +154,10 @@ export class Project {
       throw new LastOwnerError();
     }
     member.changeRole(role);
+  }
+
+  rename(name: ProjectName): void {
+    this.#name = name;
   }
 
   updateApprovalPolicy(policy: ApprovalPolicy): void {

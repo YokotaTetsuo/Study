@@ -4,6 +4,7 @@ import {
   createProjectRequestSchema,
   problemDetailSchema,
   projectResponseSchema,
+  renameProjectRequestSchema,
   setMemberRoleRequestSchema,
   updateApprovalPolicyRequestSchema,
 } from '@pdf-review/shared';
@@ -14,9 +15,11 @@ import { getCookie } from 'hono/cookie';
 import type { SessionStore } from '../../../auth/application/session-store';
 import type { AddMemberUseCase } from '../../application/add-member-usecase';
 import type { CreateProjectUseCase } from '../../application/create-project-usecase';
+import type { DeleteProjectUseCase } from '../../application/delete-project-usecase';
 import type { GetProjectUseCase } from '../../application/get-project-usecase';
 import type { ListProjectsUseCase } from '../../application/list-projects-usecase';
 import type { ProjectResult } from '../../application/project-result';
+import type { RenameProjectUseCase } from '../../application/rename-project-usecase';
 import type { SetMemberRoleUseCase } from '../../application/set-member-role-usecase';
 import type { UpdateApprovalPolicyUseCase } from '../../application/update-approval-policy-usecase';
 import type { UserDirectory } from '../../application/user-directory';
@@ -43,6 +46,8 @@ interface ProjectDeps {
   readonly addMember: Pick<AddMemberUseCase, 'execute'>;
   readonly setMemberRole: Pick<SetMemberRoleUseCase, 'execute'>;
   readonly updateApprovalPolicy: Pick<UpdateApprovalPolicyUseCase, 'execute'>;
+  readonly renameProject: Pick<RenameProjectUseCase, 'execute'>;
+  readonly deleteProject: Pick<DeleteProjectUseCase, 'execute'>;
   readonly sessions: SessionStore;
   readonly userDirectory: UserDirectory;
 }
@@ -209,6 +214,30 @@ const updatePolicyRouteDef = createRoute({
     200: { description: '更新成功' as const, content: projectContent },
   },
 });
+const renameRouteDef = createRoute({
+  method: 'put',
+  path: '/projects/{projectId}/name',
+  request: {
+    params: projectIdParam,
+    body: {
+      content: { 'application/json': { schema: renameProjectRequestSchema } },
+    },
+  },
+  responses: {
+    ...errorResponses,
+    200: { description: '更新成功' as const, content: projectContent },
+  },
+});
+
+const deleteRouteDef = createRoute({
+  method: 'delete',
+  path: '/projects/{projectId}',
+  request: { params: projectIdParam },
+  responses: {
+    ...errorResponses,
+    204: { description: '削除成功' as const },
+  },
+});
 /* eslint-enable @typescript-eslint/naming-convention */
 
 /* eslint-disable @typescript-eslint/explicit-function-return-type --
@@ -339,6 +368,39 @@ export function createProjectApp(deps: ProjectDeps) {
           approverRoles: body.approverRoles,
         });
         return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(renameRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        const result = await deps.renameProject.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+          name: c.req.valid('json').name,
+        });
+        return c.json(await toProjectResponse(result, deps.userDirectory), 200);
+      } catch (e) {
+        const p = toProblem(e);
+        return c.json(p.body, p.status, PROBLEM_HEADERS);
+      }
+    })
+    .openapi(deleteRouteDef, async (c) => {
+      try {
+        const actingUserId = await resolveUserId(c);
+        if (actingUserId === null) {
+          return c.json(UNAUTHORIZED_BODY, 401, PROBLEM_HEADERS);
+        }
+        await deps.deleteProject.execute({
+          projectId: c.req.valid('param').projectId,
+          actingUserId,
+        });
+        return c.body(null, 204);
       } catch (e) {
         const p = toProblem(e);
         return c.json(p.body, p.status, PROBLEM_HEADERS);
