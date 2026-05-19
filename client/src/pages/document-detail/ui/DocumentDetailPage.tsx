@@ -243,6 +243,7 @@ export function DocumentDetailPage(): ReactElement {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  height: '100%',
                   minHeight: 320,
                   color: 'text.secondary',
                 }}
