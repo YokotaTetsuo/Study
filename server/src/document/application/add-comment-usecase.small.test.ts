@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   COMMENT_ID,
   DOCUMENT_ID,
+  FailingAuthorDirectory,
   FakeAuthorDirectory,
   FakeProjectAccess,
   FIXED_NOW,
@@ -44,6 +45,10 @@ async function seedDocWithVersion(
 }
 
 describe('AddCommentUseCase', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should add a comment to a version for a member', async () => {
     const documents = new InMemoryDocumentRepository();
     await seedDocWithVersion(documents);
@@ -94,6 +99,33 @@ describe('AddCommentUseCase', () => {
 
     expect(result.authorId).toBe(MEMBER_ID);
     expect(result.authorDisplayName).toBeNull();
+  });
+
+  it('should persist the comment and fall back to null when display name resolution throws', async () => {
+    const documents = new InMemoryDocumentRepository();
+    await seedDocWithVersion(documents);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const useCase = new AddCommentUseCase({
+      documents,
+      projectAccess: new FakeProjectAccess(PROJECT_ID, [MEMBER_ID]),
+      // ディレクトリ解決が例外を投げる（補助情報なので処理は成功させる）。
+      authorDirectory: new FailingAuthorDirectory(),
+      idGenerator: idGeneratorReturning(COMMENT_ID),
+      clock: fixedClock,
+    });
+
+    const result = await useCase.execute({
+      documentId: DOCUMENT_ID,
+      versionNumber: 1,
+      actingUserId: MEMBER_ID,
+      content: 'x',
+    });
+
+    expect(result.id).toBe(COMMENT_ID);
+    expect(result.authorDisplayName).toBeNull();
+
+    const persisted = await documents.findById(new DocumentId(DOCUMENT_ID));
+    expect(persisted?.commentsOf(1)).toHaveLength(1);
   });
 
   it('should reject a non-member', async () => {
